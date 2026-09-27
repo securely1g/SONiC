@@ -23,6 +23,10 @@
      - [7.b.3 Building Component Containers](#7b3-building-component-containers)
      - [7.b.4 Platform & Device Support](#7b4-platform--device-support)
      - [7.b.5 Debuggability](#7b5-debuggability)
+       - [Runtime and debug-symbol artifacts](#runtime-and-debug-symbol-artifacts)
+       - [Debug container assembly](#debug-container-assembly)
+       - [Migration with Make-built base images](#migration-with-make-built-base-images)
+       - [Initial integration and validation](#initial-integration-and-validation)
    - [7.c Affected Systems](#7c-affected-systems)
      - [Dependency Changes](#dependency-changes)
      - [Changed Repositories](#changed-repositories)
@@ -440,6 +444,22 @@ $ bazel build <target> --config=broadcom # Equivalent to the above.
 
 We will implement automatic debug container generation, mirroring the current system.
 
+The runtime image and its debug variant will use the same runtime binaries. For each packaged binary, we will build a linked ELF with debug information and derive both the deployed runtime copy and its detached debug information from that ELF. The debug image will extend the runtime image with the detached information and debugging tools. In this section, "debug symbols" includes the DWARF information needed for source-level debugging.
+
+```mermaid
+flowchart TD
+    A["Build binary with debug information"] --> B["sonic_deploy_tar splits the linked ELF"]
+    B --> C["Runtime binary with debug information removed"]
+    B --> D["Detached debug symbols"]
+    C --> E["Runtime image"]
+    D --> F["debug_symbols_layer"]
+    E --> G["Debug image"]
+    F --> G
+    H["GDB and debugging tools"] --> G
+```
+
+###### Runtime and debug-symbol artifacts
+
 When specifying a component that contains debuggable artifacts, maintainers can replace `tar` with `sonic_deploy_tar` (defined in `sonic_build_infra`):
 
 ```starlark
@@ -457,11 +477,32 @@ sonic_deploy_tar(
 )
 ```
 
-This rule allows us to do two things:
-- Specify which binaries are supposed to be debuggable, through the `binaries` attribute.
-- Specify whether we should _force Bazel to produce debug builds_ (and therefore have some debug information to bundle in debug containers).
+The `binaries` attribute identifies the ELF files installed by this package, including executables and shared libraries. For each entry, `sonic_deploy_tar` splits one linked ELF into a runtime copy with debug information removed and a detached debug file. The runtime tar installs that runtime copy at the requested path. Deriving both outputs from the same linked ELF ensures that the debug information describes the deployed binary.
 
-This metadata will be propagated through the Bazel dependency tree, and OCI images will be able to consume it. For instance, if we have the following structure:
+For Bazel source targets that honor these options, `force_debug_build = True` applies the following settings to the packaging input before the split:
+
+```text
+--copt=-g
+--strip=never
+--linkopt=-Wl,--build-id
+```
+
+The selected compilation mode and optimization settings are retained. This allows an optimized runtime binary to have source-level debug information available during packaging. The transition gives Bazel a separately cacheable configuration for this input. Prebuilt ELF files must already provide the debug information needed for the split.
+
+The split uses `objcopy --only-keep-debug` to extract the detached file, then `objcopy --strip-debug --add-gnu-debuglink` to produce the runtime copy. It removes debug information while preserving the dynamic symbols needed to load a shared library. The rule produces these targets:
+
+| Target | Outputs | Use |
+| --- | --- | --- |
+| `:<name>` | Runtime tar; `DebugSymbolsInfo` metadata references the separate detached debug files | Runtime image and automatic symbol collection |
+| `:<name>.debug_symbols` | Standalone tar containing the detached debug files | CI artifacts, release artifacts, and debugging outside a container build |
+
+Both the standalone tar and the container symbol layer place detached files under `/usr/lib/debug/.build-id/NN/REST.debug`, where `NN` and `REST` are the first two and remaining hexadecimal characters of the ELF build ID. GDB can use this build ID to find the matching file. The runtime ELF also carries a `.gnu_debuglink` entry with the detached filename and its checksum (CRC). See [GDB's separate debug file documentation](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Separate-Debug-Files.html).
+
+CI and release pipelines should retain or publish the standalone symbol tar alongside its matching runtime package for each architecture and build configuration. Artifact metadata should record the source revision, build configuration, build IDs, and checksums. A source revision alone is insufficient to establish a binary/symbol match. This delivery format is a tar archive; Debian debug packages can be added when a consumer requires them.
+
+###### Debug container assembly
+
+The runtime target exposes its detached files through `DebugSymbolsInfo`, which OCI image assembly can consume. For instance, if we have the following structure:
 
 ```starlark
 sonic_deploy_tar(
@@ -480,7 +521,7 @@ oci_image(
 )
 ```
 
-Then we can use the custom `debug_symbols_layer` (also from `sonic_build_infra`) to crawl up the Bazel dependency tree using a [Bazel aspect](https://bazel.build/extending/aspects), gathering all the debug symbols, and then use it as the debug layer of a container:
+Then we can use the custom `debug_symbols_layer` (also from `sonic_build_infra`) to traverse the image dependency graph using a [Bazel aspect](https://bazel.build/extending/aspects). It collects debug-symbol artifacts exposed by Bazel-managed content and packages them as an OCI layer:
 
 ```starlark
 debug_symbols_layer(
@@ -500,6 +541,38 @@ oci_image(
 ```
 
 Users will then be able to load these containers into switches normally for debugging.
+
+The debug image uses `hello_image` as its base, so it inherits the exact runtime files for which the symbol layer was collected. The collector follows `base` and `tars` attributes and reads `DebugSymbolsInfo` providers. This includes packages reached through `flatten.tars`. It does not scan image contents or resolve native shared-library dependencies from ELF files. Each library that needs automatic symbol collection must therefore have a reachable symbol-producing package target.
+
+###### Migration with Make-built base images
+
+During [Phase 1](#phase-1-trial-of-bazel-infrastructure), Bazel consumes Make-built base images. Importing an image archive alone does not expose Bazel symbol metadata for the binaries inside it, so those binaries remain outside automatic symbol discovery. For example, the [sysmgr prototype](https://github.com/sonic-net/sonic-buildimage/blob/3bcb4b6b2efd0e4ae22d8317f67487c5f9e95809/dockers/docker-sysmgr/BUILD.bazel#L10-L73) obtains `libswsscommon` from its imported config-engine base.
+
+We propose handling each imported component in one of these ways:
+
+- Keep the Make-built runtime binary and explicitly supply the detached symbols produced for that same Make build. The imported runtime and symbol artifacts must be tied together by their build provenance, validated build IDs, and debug-link checksums when present.
+- Move the runtime binary and its symbols into Bazel together. During Phase 1, a derived image can install the Bazel runtime tar over the imported base and collect its matching symbols. Validation must confirm that the container loads the Bazel-produced library. During Phase 2, the runtime package can move into a shared Bazel-built base layer.
+
+Until a matching symbol payload is available, the debug coverage for the imported component must be documented as incomplete. Symbols from an independent rebuild cannot be paired using source revision alone. The same rule applies to prebuilt third-party libraries.
+
+###### Initial integration and validation
+
+We propose `sonic-swss-common` as an initial shared-library integration:
+
+1. Replace its per-architecture `dist_loose` tar rules with `sonic_deploy_tar`, with `force_debug_build = True`. Put `libswsscommon_consolidated.so` and `swssloglevel` in `binaries`, while retaining the library's installed filename, SONAME symlinks, configuration files, and the public `//dist:libswsscommon_pkg` target.
+2. Expose an architecture-selecting symbol target backed by the generated per-architecture `.debug_symbols` targets. CI will publish that tar beside the runtime package for AMD64 and ARM64.
+3. Include the matching Bazel runtime package in a consuming runtime image. Point `debug_symbols_layer` at that image and add the resulting layer and debugging tools to its debug variant.
+
+The packaging and container validation will check:
+
+- The runtime library contains the expected SONAME and is installed with the required filenames and symlinks.
+- The runtime copy has its DWARF debug sections removed, and the detached file contains source-level debug information.
+- The runtime and detached file have matching build IDs, and the runtime's debug link validates the detached file.
+- GDB automatically finds the detached file and resolves a known function to its source file and line from both the staged package and the debug container.
+- The container loads the intended runtime library, and the debug variant extends the same runtime image with the symbol and tooling layers.
+- These checks pass for each supported architecture and build configuration.
+
+The symbol layer contains detached ELF debug information. Source-file bundling and split-DWARF side files (`.dwo` or `.dwp`) require separate collection support if adopted later.
 
 #### 7.c Affected Systems
 
@@ -549,9 +622,9 @@ However, this also presents a good opportunity for members of the community to a
 
 ### 13. Testing Requirements/Design  
 
-There are no new SONiC functional, unit, or system tests required.
+There are no new SONiC functional behaviors to test. Build and packaging validation is required, including the debug-artifact and container checks in [7.b.5](#initial-integration-and-validation).
 
-However, we will be adding CI jobs to validate the Bazel builds in the required environments, as outlined in the [CI considerations](#ci-considerations) section, as well as other equivalence characteristics we need (such as image size, and file layout diffs with the Make-built images).
+We will add CI jobs to validate the Bazel builds in the required environments, as outlined in the [CI considerations](#ci-considerations) section, as well as other equivalence characteristics we need (such as image size, and file layout diffs with the Make-built images).
 We expect to be able to leverage remote caching to make these builds significantly more performant than the alternative.
 
 #### 13.1. Unit Test cases  
