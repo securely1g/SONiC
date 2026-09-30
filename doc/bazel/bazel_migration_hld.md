@@ -19,6 +19,7 @@
    - [7.a Changes to Existing Build System (Bazel/make Interoperability)](#7a-changes-to-existing-build-system-bazelmake-interoperability)
    - [7.b Bazel Build](#7b-bazel-build)
      - [7.b.1 Groundwork](#7b1-groundwork)
+       - [Build tools and target sysroots](#build-tools-and-target-sysroots)
      - [7.b.2 Managing Patched External Dependencies](#7b2-managing-patched-external-dependencies)
      - [7.b.3 Building Component Containers](#7b3-building-component-containers)
      - [7.b.4 Platform & Device Support](#7b4-platform--device-support)
@@ -329,6 +330,35 @@ As part of preparing the repository for the migration, we have done the followin
 > This is not a regression, but it is one more synchronization point that we'll need to keep up to date temporarily.
 
 Please note that this groundwork alone is not sufficient to guarantee full reproducibility. For instance, we'll still rely on `snapshot.debian.org` being available. However, this brings us close enough that we can start working on the Bazel build.
+
+###### Build tools and target sysroots
+
+The **execution platform** runs build actions; the **target platform** runs the resulting software. Keep their dependencies distinct:
+
+| Dependency | Placement |
+| --- | --- |
+| Compiler and linker | Shared toolchain: runs on the execution platform, produces target code |
+| Generators and their runtime libraries/data | Pinned Bazel tools or toolchains; shared `build_tools` set for Debian tools |
+| System headers and libraries used for compilation/linking | Target `sysroot` |
+| Component libraries and container contents | Explicit target dependencies and runtime/debug packages |
+
+Prefer existing Bazel toolchains. For Debian generators, reuse `sonic-build-infra`'s `build_tools` set and centralized pinned package resolution. Keep compiler baseline packages in `sysroot`; avoid component-local downloaders for the same tools.
+
+Use **`cfg = "exec"`** on dependencies that supply programs run by an action or their runtime bundles. For example, in a custom rule:
+
+```starlark
+attrs = {
+    "generator": attr.label(executable = True, cfg = "exec"),
+    "tool_bundle": attr.label(allow_single_file = True, cfg = "exec"),
+    "deps": attr.label_list(),
+}
+```
+
+A bundle is not itself executable. Its package dependencies inherit its configuration; target-library dependencies keep the consuming rule's configuration. Package-set names alone do not select architecture. Declare the tool's executable, libraries, interpreters and data as action inputs, and align its configuration with the action's execution platform. See [Bazel configurations](https://bazel.build/extending/rules#configurations) and [toolchain guidance](https://bazel.build/extending/toolchains#toolchains-and-configurations).
+
+**SAI example:** Doxygen, Aspell and the English dictionary come from `build_tools`; the generator consumes their bundle with `cfg = "exec"`, then generated C is compiled for the target. An ARM64 worker cross-compiling for ARMHF must use ARM64 generators and ARMHF target libraries.
+
+Validate tool selection in the consumer's configured graph and run generation plus target compilation for each supported pair. Native AMD64 and ARM64 builds alone do not prove cross-compilation support.
 
 ##### 7.b.2 Managing Patched External Dependencies
 
