@@ -1,0 +1,4 @@
+interface:
+  display_name: "SONiC Bazel Migration"
+  short_description: "Migrate SONiC components to Bazel with verified outputs"
+  default_prompt: "Use $sonic-bazel-migration to add or assess Bazel support for this SONiC component."
