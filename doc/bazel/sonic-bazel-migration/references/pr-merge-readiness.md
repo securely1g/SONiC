@@ -71,6 +71,28 @@ state. After its prerequisite merges, follow the
 [base-branch rebase workflow](base-branch-rebase.md) to preserve the intended
 diff, retarget when appropriate and verify the new base.
 
+## Restore temporary CI branch filters
+
+As part of making a PR Ready for review after retargeting a stack to the
+repository's maintained `main` or `master`, restore any `pull_request`
+target-branch filters removed or widened only to validate that stack. Apply
+the same cleanup when reassessing an already-Ready PR. Inspect workflow history
+and the maintained-branch baseline to recover the original filters; do not
+hardcode `master` or narrow intentionally broader coverage approved by the user.
+
+Check every affected workflow, including native build/test and CodeQL workflows.
+Keep the `pull_request` trigger and limit the cleanup to the temporary filter
+change. Preserve unrelated triggers, job settings, path filters and analysis
+coverage. If the original filters do not include the final target branch,
+resolve that mismatch from the repository's current CI policy before claiming
+cleanup is complete.
+
+After publishing the cleanup, follow [source PR CI completion](source-pr-ci.md)
+to verify the expected PR jobs still run for the final head and intended base.
+Record the head, workflow/run URLs and observed jobs; prior runs or an empty
+Checks tab do not verify the restored filters. Keep pending results distinct
+from success and retain the existing informational CodeQL policy.
+
 ## Reconcile Draft and Ready for review
 
 On authorized PR creation, refresh, base changes, upstream-merge reassessment
@@ -82,7 +104,8 @@ Within the task's scope, apply the following rule:
 | Any consumed dependency commit is unlanded or its required provenance cannot be verified | Draft |
 | A consumer still uses a temporary registry endpoint or ineligible registry commit, or required entries are unavailable | Draft |
 | A registry PR proposes an unlanded or unverifiable SONiC source version, is stacked, or does not target maintained `master`/`main` | Draft |
-| Dependency provenance, registry endpoint and any registry base/source requirements pass | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
+| Temporary CI branch-filter cleanup is still needed after retargeting a stack | Draft |
+| Dependency provenance, registry endpoint and any registry base/source requirements pass, and applicable CI branch-filter cleanup is complete | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
 
 An upstream merge triggers reassessment; it does not make a consumer ready
 while it still selects the former PR head. A head, base or selected-dependency
