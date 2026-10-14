@@ -18,6 +18,7 @@ PROJECT_ID = "PVT_kwHOD5OsO84Bk3xL"
 CANONICAL_FIELD_ID = "PVTF_lAHOD5OsO84Bk3xLzhjpYx4"
 FIELD_NAME = "All upstream PRs"
 PR_URL = re.compile(r"https://github\.com/([^/\s]+)/([^/\s]+)/pull/([1-9][0-9]*)/?\Z")
+COMPACT_PR = re.compile(r"(?:(?P<owner>[A-Za-z0-9_.-]+)/)?(?P<repo>[A-Za-z0-9_.-]+)#(?P<number>[1-9][0-9]*)\Z")
 ITEM_QUERY = """query($cursor:String) {
   viewer {login}
   user(login:"securely1g") {projectV2(number:1) {
@@ -114,12 +115,51 @@ class PrLinks(HTMLParser):
         raise OrderError("Declarations are not canonical dependency links")
 
 
-def parse_links(text: str) -> tuple[str, ...]:
+def parse_anchors(text: str) -> tuple[str, ...]:
     parser = PrLinks()
     parser.feed(text)
     parser.close()
     require(not parser.inside, "Unclosed prerequisite anchor")
     return tuple(dict.fromkeys(parser.links))
+
+
+def repository_aliases(repositories: set[str]) -> dict[str, str]:
+    """Resolve display names from verified repositories, never a guessed prefix."""
+    aliases: dict[str, str] = {}
+    for repository in sorted(repositories):
+        owner, repo = repository.lower().split("/", 1)
+        if owner != "securely1g":
+            continue
+        for alias in {repo, repo.removeprefix("sonic-")}:
+            require(alias not in aliases or aliases[alias] == repository.lower(),
+                    f"Ambiguous prerequisite repository alias: {alias!r}")
+            aliases[alias] = repository.lower()
+    return aliases
+
+
+def parse_links(text: str, aliases: dict[str, str] | None = None) -> tuple[str, ...]:
+    """Read full HTML links or the lossless compact fallback for long cells."""
+    if not text.strip():
+        return ()
+    if "<" in text:
+        return parse_anchors(text)
+    links = []
+    for reference in text.split("·"):
+        match = COMPACT_PR.fullmatch(reference.strip())
+        require(match is not None, f"Invalid compact prerequisite: {reference!r}")
+        owner, repo, number = match.group("owner", "repo", "number")
+        repo = repo.lower()
+        if owner:
+            # Qualified references retain the actual repository name.
+            repository = f"{owner.lower()}/{repo}"
+        elif repo.startswith("sonic-"):
+            repository = f"securely1g/{repo}"
+        else:
+            repository = (aliases or {}).get(repo)
+            require(repository is not None,
+                    f"Unknown prerequisite repository alias: {repo!r}; use owner/full-repository#number")
+        links.append(normalized_pr_url(f"https://github.com/{repository}/pull/{number}"))
+    return tuple(dict.fromkeys(links))
 
 
 @dataclass(frozen=True)
@@ -238,8 +278,14 @@ def desired_order(snapshot: Snapshot) -> tuple[list[str], list[dict[str, str]]]:
     indegree = {item.id: 0 for item in prs.values()}
     dependents: dict[str, set[str]] = {item.id: set() for item in prs.values()}
     missing = []
+    repositories = {"/".join(PR_URL.fullmatch(url).groups()[:2]) for url in prs}
     for item in prs.values():
-        for url in parse_links(item.upstream):
+        if "<" in item.upstream:
+            repositories.update("/".join(PR_URL.fullmatch(url).groups()[:2])
+                                for url in parse_anchors(item.upstream))
+    aliases = repository_aliases(repositories)
+    for item in prs.values():
+        for url in parse_links(item.upstream, aliases):
             upstream = prs.get(url)
             if upstream is None:
                 missing.append({"consumer": item.url, "prerequisite": url})
