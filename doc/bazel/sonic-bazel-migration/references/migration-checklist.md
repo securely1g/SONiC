@@ -10,7 +10,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - State which producer changes, which consumer interface it preserves, and which inputs remain supplied by Make or published binaries. Record the selected workflow's completion checks.
 - Plan separate PRs for independent features. Identify each feature's concrete consumers, link their PRs when available, and explain the target/build path and need; follow the [feature-splitting workflow](shared-dependency-workflow.md#split-features-and-identify-their-consumers).
 - Inventory existing Make/Autotools/CMake or other build commands and any existing Bazel port.
-- Record required outputs: libraries, executables, generated files, bindings, tar archives, Debian packages, wheels, and images.
+- Record only the outputs required by the current consumer: libraries, executables, generated files, bindings, TARs, Debian packages, wheels, or images. For TAR-to-OCI, apply the [output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci) and identify any genuine separate DEB consumer before proposing package work. Preserve the legacy Make package path and its CI.
 - Record any explicit approval to execute Bazel actions that create DEB packages and the scope it covers. Without it, do not run those actions.
 - Record supported OS releases, execution/target architectures, feature flags, optional dependencies, and required services.
 - Capture reference artifacts and test results tied to a known source revision and environment.
@@ -66,7 +66,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Install the actual package in a clean environment with only its declared runtime dependencies; exercise loading/imports and CLI behavior without Bazel runfiles or test-only search paths masking missing files or dependencies.
 - Keep runtime package inputs visible in the downstream Bazel dependency graph.
 
-**Completion evidence:** runtime-loading and package-layout checks plus consumer validation. State separately any Debian metadata or full package-equivalence work that remains.
+**Completion evidence:** runtime-loading and package-layout checks plus consumer validation. For requested Debian outputs, state any remaining metadata or full package-equivalence work.
 
 ## 5. Tests and CI
 
@@ -121,7 +121,7 @@ Apply this section to native ELF artifacts that require source-level debugging.
 
 ## 8. Downstream image integration
 
-- Keep new or changed dependency build/packaging support in separate producer PRs, grouped by component: related DEBs from one component stay together; different components get separate PRs. Keep the container PR focused on consuming those targets and image integration, with actual prerequisite links recorded.
+- Keep new or changed dependency source-build and runtime/debug TAR support in separate producer PRs, grouped by component. Keep the container PR focused on consuming those targets and image integration, with actual prerequisite links recorded. Do not add unused DEB producers, package-only CI gates, or Project dependencies to the selected TAR path.
 - For a Docker/OCI build request, inventory every project runtime component and transitive dependency, including base-image contents, and bind each to compatible Bazel source/package targets. Reuse existing owner targets and identify missing feature support before adding import adapters. Pinned Debian APT packages remain allowed; Make-produced project artifacts remain migration gaps under the [OCI runtime policy](../SKILL.md#build-oci-images-with-bazel-built-project-runtime-dependencies).
 - For DEB-to-OCI assembly, record the selected `rules_distroless`, `tar.bzl` BSD tar toolchain and `rules_oci` roles/versions under the [upstream-component policy](../SKILL.md#reuse-upstream-components-for-deb-to-oci-assembly). Verify the consumer BUILD file declares upstream extraction and assembly directly, generic archive/OCI processing stays upstream, and no shared importer or custom assembly wrapper is introduced without explicit scoped approval. Preserve package metadata and order, and validate runtime/debug identity and reproducibility.
 - Update the consumer's module dependencies and runtime package targets.
