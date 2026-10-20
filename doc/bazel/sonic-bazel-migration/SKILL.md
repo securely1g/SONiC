@@ -124,6 +124,10 @@ Compile the component being migrated from its declared source, including its gen
 
 For an individual component migration, external dependencies may be pinned APT packages, native wheels, or compatible source-built modules. An OCI image request has the broader project runtime scope defined above; its project components are not exempt external binaries. Declare their versions, integrity, transitive requirements, ABI, and execution/target roles; validate the selected files and installed runtime behavior. A pinned binary dependency is an intentional input, not automatically unfinished migration work. Apply the source requirement to an external dependency when that dependency itself is the requested migration unit; do not expand a component migration into rebuilding all its dependencies. Read [component-source and external-dependency policy](references/source-builds-and-lockfiles.md) for the audit and DASH examples. Publish reusable dependency integration through the registry as described below.
 
+### Retain upstream configure/Make for external source packages
+
+When migrating an external source package while retaining its build system, use declared `rules_foreign_cc` actions for its upstream configure/Make build and stage the installed files into runtime and matching debug TARs. Follow [external source packages](references/external-source-packages.md) for source preparation, declared tools and dependencies, cache boundaries, and validation. Reuse Debian-maintained patches and copyright from the pinned Debian source archive when that is the SONiC baseline; do not duplicate them in registry overlays. This source-build path does not produce DEBs or require a separate DEB-packaging module. Preserve the existing central-registry check, dependency ownership and DEB-execution approval rules.
+
 ## Keep reusable Rust libraries with their owners
 
 Apply this rule throughout SONiC Rust bazelization: **each reusable SONiC Rust library's owning source repository defines and exposes its Bazel target, and consumers depend on that target.** For example, SWSS Common owns `swss_common`; SWSS uses Common's public target.

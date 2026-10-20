@@ -46,6 +46,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 ## 3. Build graph and feature coverage
 
 - Define targets for source libraries, linked binaries, generators, bindings, packages, and tests at useful cache boundaries.
+- When retaining an external package's configure/Make build, follow [external source packages](external-source-packages.md): fetch the maintained source/patch set, declare execution tools and target dependencies, stage installation, and select runtime/debug TAR outputs without DEB-producing actions. Record foreign-action cache granularity separately from native per-source caching.
 - Keep reusable SONiC Rust library and binding rules with the library owner. Verify that consumers depend on the owner's target and remove duplicate consumer compilation/binding definitions; normal transitive builds and cache reuse remain valid.
 - Compare source and header inventories with the legacy build, including nested directories and conditional sources.
 - Trace the component's required outputs to their generation, compilation, and link actions. Trace imported external libraries to pinned package inputs; fetching source alongside an import does not prove that dependency was compiled.

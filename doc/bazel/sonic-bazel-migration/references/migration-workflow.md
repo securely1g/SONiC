@@ -19,6 +19,7 @@ establish cross-compilation support.
 | Requested work | Implementation and acceptance |
 | --- | --- |
 | Compile a component | [Source build](#source-build): declared generation/compilation/link actions, source coverage and real consumers |
+| Retain an external package's configure/Make build | [External source packages](external-source-packages.md): declared upstream source build, staged runtime/debug TARs, no DEB production |
 | Produce Python wheels | [Python distributions](#python-distributions): source library plus complete wheel and installed-package checks |
 | Build a Docker/OCI image | [Docker assembly](#docker-assembly): Bazel-built project runtime dependency closure, shared structure, checked payloads, installed runtime and exported archives |
 | Reuse existing DEBs | [Debian import](#import-existing-debian-packages): pinned package set, producer provenance, cache and consumer checks |
@@ -56,8 +57,16 @@ tests, installed runtime/ABI checks and a real downstream consumer. Establish a
 clean build and representative source-change invalidation; normal cached outputs
 of declared source actions remain valid. Importing the component's finished
 binary does not satisfy source migration. Pinned external binary dependencies
-remain allowed. A wrapper around a whole legacy build is an intermediate
-integration; it does not demonstrate independently cached source actions.
+remain allowed.
+
+For one external package, retaining its upstream configure/Make recipe through
+declared `rules_foreign_cc` actions is a valid source build. Follow
+[external source packages](external-source-packages.md) to prepare maintained
+sources and patches, declare tools and dependencies, and produce runtime/debug
+TARs without DEBs. Bazel caches the foreign build at action granularity; this
+does not establish independently cached per-source compilation. An opaque
+wrapper around a whole legacy product build remains an intermediate integration,
+not evidence that its individual component inputs and producers are modeled.
 
 ## Python distributions
 
