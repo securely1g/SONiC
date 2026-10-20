@@ -35,7 +35,7 @@ published through `sonic-bazel-registry`. Follow the existing
 when adopting existing work, but assess the final graph before retaining an
 earlier workaround or helper.
 
-For Docker-to-Bazel work, [split dependency build changes from the container PR](docker-image-template.md#split-dependency-work-from-image-integration): one PR per dependency component, keeping its related DEBs together. Different components use separate PRs; image integration consumes their targets and records the prerequisite links.
+For Docker-to-Bazel work, [split dependency build changes from the container PR](docker-image-template.md#split-dependency-work-from-image-integration): one PR per dependency component for its source-build and runtime/debug TAR support. Image integration consumes those targets and records actual prerequisite links. Follow the [TAR-to-OCI output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci); introduce new DEBs only for a separately scoped consumer that requires that format, while preserving the legacy Make build.
 
 ## Source build
 

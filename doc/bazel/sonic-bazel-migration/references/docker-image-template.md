@@ -46,18 +46,27 @@ usable for permitted inputs; their existence does not change this criterion.
 
 ## Split dependency work from image integration
 
-Keep dependency build migrations out of the container PR. Group dependency
-DEBs by their producing component: one PR can cover that component's runtime,
-development and debug packages, while different components use separate PRs.
-For example, `libnl-3-200`, `libnl-route-3-200` and their related development/debug
-DEBs share one libnl3 PR; libyang3 has another. Keep each producer's source
-support, packaging, tests and documentation in its own PR.
+Keep dependency build migrations out of the container PR. Apply the
+[TAR-to-OCI output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci)
+before proposing producer work. Group source-build and runtime/debug TAR support
+by component: libnl3's TARs belong in one dependency PR and libyang3's in another.
+Keep each producer's source support, required outputs, tests and documentation
+together. Add a DEB producer only for a separately scoped consumer requiring that
+format; split its related packages by producing component.
 
 The container PR consumes the resulting public targets and versions, assembles
 the image and validates the Make/installer handoff. Reuse already available
 targets directly. Link required producer/registry PRs and keep readiness tied to
 the actual selected dependencies. Pending producer work remains a source-build
 gap; dividing it into PRs does not make the overall OCI migration complete.
+
+Select explicit runtime/debug TAR and contract-test targets in local validation
+and CI. Inspect their transitive actions, including Make handoffs and test
+fixtures, for accidental DEB generation; a broad aggregate can select unused
+package targets. Keep image prerequisites, required checks and Project links
+tied to the selected TAR/source graph. Optional DEB production or package-only
+CI must not become an OCI merge gate. Preserve the legacy Make package path and
+its CI; this rule concerns the new TAR path.
 
 ## BUILD file sections
 

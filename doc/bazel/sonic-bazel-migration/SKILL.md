@@ -98,9 +98,19 @@ Before implementation, inventory the final runtime dependency closure and map pr
 
 Make may still orchestrate the rest of the VS installer and the agreed metadata/archive handoff. A successful OCI build or full installer CI does not prove that its runtime components were built by Bazel. Remaining Make-produced project runtime files are migration gaps, including inherited files; report them and do not claim this requirement complete. Honor an explicit user request for a narrower assembly/import task, and label its completion accordingly. A skill edit or read-only audit does not itself authorize migrating unrelated repositories.
 
+### Consume runtime and debug TARs directly for OCI
+
+For TAR-to-OCI work, consume the owner's source-built runtime TAR directly, with matching debug TARs for native ELF outputs. Add missing source/TAR support with that owner. Do not introduce new DEB production, or the CI, registry entries and shared helpers supporting it, merely to reproduce legacy Make outputs, provide debug symbols, or feed OCI assembly.
+
+Before proposing new DEB packaging, identify a concrete consumer repository and target or build step that requires an installable `.deb`, and explain why the TAR interface cannot satisfy it. Keep that separately scoped package work independent of OCI consumers that only need TARs. The existence of a legacy Debian recipe or another optional packaging proposal alone does not establish this need. A genuine DEB consumer does not waive the existing explicit approval requirement for DEB-producing execution.
+
+Preserve the legacy Make build, Debian recipes/control files/scripts, package outputs, default selection, and legacy CI unless the user separately requests changes to that path. Adding a Bazel TAR path does not authorize removing or rewiring the Make package producer. Existing pinned Debian binary inputs and host/kernel installer interfaces that genuinely consume DEBs remain valid separate paths.
+
+Preserve required runtime installation behavior and metadata when composing TARs; do not fabricate dpkg installation state or silently drop that contract. Follow the [Docker template](references/docker-image-template.md#split-dependency-work-from-image-integration) for target selection and actual prerequisite tracking. Missing unrequested DEB packaging is not unfinished TAR-to-OCI migration work.
+
 ### Keep dependency build changes out of the container PR
 
-For Docker-to-Bazel migration, put new or changed dependency source-build and DEB packaging support in separate dependency PRs. Use one PR per dependency component: DEBs from the same component, including related runtime, development and debug packages, stay together. Different components get separate PRs. For example, the libnl3 DEBs belong in one dependency PR, libyang3 in another, and their OCI image integration in the container PR.
+For Docker-to-Bazel migration, put new or changed dependency source-build and runtime/debug TAR support in separate dependency PRs, one per producing component. For example, libnl3's source/TAR support belongs in one PR, libyang3's in another, and their OCI integration in the container PR. When a separately scoped consumer requires DEBs, keep related runtime, development and debug packages from the same component together.
 
 Keep each dependency's build targets, packaging, tests and documentation with its owner. The container PR consumes those targets/versions and contains image composition, Make handoff and image validation. Reuse existing compatible dependency targets without creating unnecessary producer PRs. Link actual prerequisites and follow the existing registry and dependency-readiness rules. Splitting the work does not waive the runtime source-build requirement or require new DEB outputs when runtime/debug TARs already satisfy the consumer; the DEB-execution approval boundary remains unchanged.
 
