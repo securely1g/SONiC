@@ -39,7 +39,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Isolate compatibility paths that still depend on an older Bazel version or the SONiC slave environment.
 - Compare compiler, linker, and feature options with the baseline; document intentional differences.
 - For shared dependency changes, verify the source-to-registry-to-consumer chain and actual module resolution; prefer focused architecture checks for early feedback before expensive integration builds.
-- For an unmerged registry PR, retain only its current candidate unless an evidenced compatibility need requires another. Preserve released and actual-base entries, check consumer pins, and remove superseded draft directories, metadata, and CI jobs together using the [draft-version workflow](shared-dependency-workflow.md#keep-one-current-version-in-an-unmerged-registry-pr).
+- For an affected open registry stack, retain one unreleased candidate per module. Inventory other open module PRs and affected consumer selections; preserve published entries, recheck publication before cleanup, and remove superseded draft directories, metadata, and CI jobs together using the [draft-version workflow](shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module).
 
 **Completion evidence:** toolchain resolution and dependency analysis for each selected configuration, with remaining host dependencies identified.
 
