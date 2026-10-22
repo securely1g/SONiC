@@ -39,7 +39,7 @@ Before pushing, inspect the actual new commits' author, committer, and sign-off 
 
 Use clear, simple language for PR titles, descriptions, and commit messages. Explain the problem, what changes, and who needs it. Replace jargon with familiar words or explain it at first use; for example, explain "fixture DEBs" as "sample Debian packages used in tests."
 
-Always include a concrete example in each PR description when possible. Lead with the specific problem and affected consumer, then show an input or action and the behavior before and after the change. Avoid abstract summaries such as "improve package handling" without explaining what changes for the consumer. Base examples on code, tests, or observed output; clearly label illustrative examples and do not present them as reproduced failures.
+Always include a concrete example in each PR description when possible. Lead with the specific problem and affected consumer, then show an input or action and the behavior before and after the change. Avoid abstract summaries such as "improve package handling" without explaining what changes for the consumer. Base examples on code, tests, or observed output; clearly label illustrative examples and do not present them as reproduced failures. For argument, path, or value transformations, include the concrete input and output from code or test evidence; shorten incidental prefixes when needed for readability and label that simplification.
 
 For example: "Debian libpcap's quoted variables made Bazel record the include path `""/usr"/include"` for BMv2's dependency; the parser now produces `/usr/include`." Keep titles short and straightforward changes brief; put examples and supporting explanations in the description or commit body.
 
