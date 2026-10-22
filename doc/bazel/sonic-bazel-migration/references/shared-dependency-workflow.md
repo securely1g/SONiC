@@ -151,33 +151,86 @@ only for Draft validation; revisit it after those prerequisites land. Record
 checked revisions, selection evidence and the verified Draft/Ready result without
 repeated alerts.
 
-## Keep one current version in an unmerged registry PR
+<a id="keep-one-current-version-in-an-unmerged-registry-pr"></a>
 
-Keep one current candidate for the module introduced by an unmerged registry PR.
-When its source revision changes, replace the superseded draft registration;
-do not accumulate a new retained directory for each PR push or successful CI run.
-A draft entry being available at a PR commit does not by itself make it a release.
+## Keep one unreleased candidate per module
 
-- Compare with the actual PR base, including a stacked base. Preserve versions
-  already on that base and versions merged or explicitly released independently
-  of the draft PR. This cleanup is limited to superseded candidates introduced
-  by the PR; do not prune older entries elsewhere in the registry.
-- Check affected consumers' module versions and registry revisions. Update
-  consumers that need the revised PR contents and validate their selection.
-  Move temporary Draft validation overrides to the reviewed branch containing
-  the current candidate. Keep previously referenced commits reachable for
-  historical evidence; do not retain an old registry SHA as a local-build policy.
-  Record a concrete compatibility need before retaining an extra draft candidate,
-  and honor an explicit latest-only request by resolving that need rather than
-  silently retaining extra versions.
-- Remove superseded draft directories and metadata entries together. Point the
-  current entry at its exact source commit, keep its module declaration, source
-  integrity, patches, and presubmit consistent, and rewrite documentation and the
-  PR description around the final candidate.
-- Validate the retained entry through its supported native consumer matrix and
-  check the CI plan contains no jobs for removed drafts. Keep the shared PR at
-  one commit relative to its actual base and follow the existing identity and
-  exact force-push lease rules.
+Apply this rule to the combined affected open PR stack, not separately to each
+PR's added directories. Publication means the version is on the registry's
+maintained `main`/`master`, or has a verified explicit release independent of the
+draft stack. A version inherited from an unmerged PR base, referenced by another
+PR, or used in successful CI is still unreleased. The actual PR base determines
+its review diff and commit count; it does not establish publication.
+
+- Before choosing or replacing a candidate, fetch the maintained branch and the
+  actual PR bases. Record the observed SHAs and each relevant version's publication
+  evidence. Search other open registry PRs touching the same module, including
+  independent branches, and inspect their cumulative changes and source revisions.
+  Do not assume a clean one-version diff proves the whole stack complies.
+- Preserve published version directories and their entries in module metadata. Keep
+  one current unreleased candidate for the module: update it as the source
+  changes and remove superseded draft directories and metadata together. Keep
+  independent feature reviews separate, but coordinate their registrations rather
+  than retaining an extra draft release for each PR boundary. An unmerged stacked
+  feature can amend the same candidate supplied by its base. Do not delete another
+  PR's work or rewrite its branch without applicable authority; identify the
+  affected PRs and coordinate the update. Resolve a consumer compatibility need
+  before cleanup; it is not an implicit exception to an explicit latest-only request.
+- Inventory affected consumer PRs and standalone builds. Record each declared
+  module version, effective selected version, registry endpoint, temporary draft
+  registry/source revision, and required feature. Inspect `MODULE.bazel`, overrides,
+  `.bazelrc`/CI flags, resolved graphs and applicable generated lockfiles. Update
+  consumers that need the revised candidate or still select a superseded draft,
+  including temporary validation source pins. Verify actual resolution and the
+  affected native tests; a description link or a higher requested version is not
+  selection evidence. Record an evidenced no-change decision for compatible
+  consumers, and keep unresolved consumer updates visible before claiming completion.
+- Keep the candidate's module declaration, exact source commit, archive integrity,
+  patches, metadata and presubmit consistent. Retain previously referenced source
+  commits for historical evidence without treating those snapshots as published
+  registry versions. Rewrite PR descriptions around the final contents and current
+  prerequisites; follow the existing one-commit and exact force-push lease rules.
+- Immediately before deleting a draft entry or publishing a rewrite, reread the
+  maintained branch, explicit release evidence, and affected PR heads/bases. If a
+  candidate has now published, preserve its bytes and use the next revision for
+  further changes. Reassess rather than applying an earlier cleanup plan. After a
+  prerequisite merges, [rebase away already-landed changes](base-branch-rebase.md)
+  and [refresh consumers](upstream-merge-reassessment.md); do not retain duplicate
+  registrations or obsolete stacked-dependency descriptions.
+- Run the registry candidate-policy check and inspect the native CI plan for the
+  final tree. The check must compare with the maintained publication baseline,
+  not only the selected stacked PR base; there should be no jobs for removed
+  drafts. A branch check can detect multiple candidates present in that tree and
+  changes to published entries. It cannot discover other open PR branches,
+  independently published releases, or stale consumer selections. The inventories
+  above remain required even when registry CI is green.
+
+Run the supported planner from the registry checkout, with freshly verified full
+SHAs (the actual PR base may differ from the maintained branch):
+
+```sh
+python3 ci/registry_ci.py plan --published "$maintained_sha" \
+  --base "$pr_base_sha" --head "$pr_head_sha" --output plan.json
+```
+
+For a push to the maintained branch, add `--push` and use its pre-push SHA as the
+publication baseline. This checks rollbacks as well as forward changes; using the
+new head would misclassify all new candidates as already published.
+`--all` still needs a publication baseline. If the selected registry checkout does
+not yet have this guard, record the missing coverage and check these invariants
+manually; do not report candidate-policy CI as passing.
+
+For example, consider `libyang-python/3.1.0.sonic.3` in
+[Registry #85](https://github.com/securely1g/sonic-bazel-registry/pull/85) and
+`.sonic.4` in [Registry #102](https://github.com/securely1g/sonic-bazel-registry/pull/102):
+
+| Observed publication state | Required treatment |
+| --- | --- |
+| Both registrations are still unreleased; #102 inherits `.3` from #85 and adds `.4`. | Coordinate one current candidate across the stack; inheriting `.3` does not protect it as a release. Keep the feature reviews separate without retaining both draft versions in the combined tree. |
+| #85 has merged and published `.3`; #102 still needs additional behavior. | Preserve published `.3` unchanged and keep `.4` as the single new candidate. Rebase #102 onto the maintained branch, remove redundant commits, and refresh consumers that need `.4`. |
+
+Recheck the live state when applying this example. A merge between those two
+observations changes which entries may be replaced.
 
 ## Prove selection before extending the build machinery
 

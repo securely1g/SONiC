@@ -55,7 +55,7 @@ When refreshing a pin, update all dependent version declarations, source URLs,
 integrity values, patches and CI references coherently. For a registry module,
 the source SHA in its version directory, `MODULE.bazel`, metadata and version
 patch must agree with `source.json`. Follow the
-[draft-version workflow](shared-dependency-workflow.md#keep-one-current-version-in-an-unmerged-registry-pr)
+[draft-version workflow](shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module)
 for registry candidates and preserve published historical entries. Verify
 archive integrity, patched module contents and actual consumer resolution, then
 rerun required validation for the changed boundary. Tree equality is useful

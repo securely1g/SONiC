@@ -59,8 +59,8 @@ bindings, and dependency-owned tests in `sonic-bazel-registry`; SONiC-owned
 dependency source support belongs in its own repository and is then registered.
 Shared toolchain/build/packaging logic belongs in `sonic-build-infra`. Follow the
 existing one-module and one-commit-per-shared-PR rules. Preserve published
-registry releases unchanged when introducing a successor. For entries introduced
-by an unmerged PR, [keep only the current draft candidate](shared-dependency-workflow.md#keep-one-current-version-in-an-unmerged-registry-pr)
+registry releases unchanged when introducing a successor. For unreleased entries
+across the affected open stack, [keep one current candidate per module](shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module)
 instead of retaining every intermediate source revision.
 
 ## Separate execution tools from target dependencies
@@ -225,8 +225,8 @@ historical snapshot as current status.
 | Debug artifacts must match the deployed ELF. | Split runtime and symbols from the same linked output; verify build IDs, debug-link checksum, and debugger lookup in delivered artifacts. |
 | Registry CI does not establish source PR health. | Require current-revision source PR CI for declared configurations, then validate the registered module separately. Inspect downloaded artifacts and their provenance. |
 | Generated APT resolution data made the Bazel lock roughly 5.7 MB. | Keep explicit inputs pinned, regenerate the ignored Bazel lock, and archive resolution evidence in CI. Size is context; the no-check-in rule applies regardless of file size. |
-| Commit-hash suffix order need not follow release order. | Follow the registry version policy, verify the intended successor wins resolution, and preserve released and actual-base versions unchanged. |
-| Keeping every draft registry revision turned one DASH proposal into four versions and eight native jobs. | Keep only the current candidate introduced by an unmerged PR; preserve releases and actual-base entries, check consumer pins, and remove superseded draft metadata and CI jobs together. |
+| Commit-hash suffix order need not follow release order. | Follow the registry version policy, verify the intended successor wins resolution, and preserve published versions unchanged. |
+| Keeping every draft registry revision turned one DASH proposal into four versions and eight native jobs. | Keep one unreleased candidate per module across the affected open stack; preserve published entries, recheck publication before cleanup, refresh consumer selections, and remove superseded draft metadata and CI jobs together. |
 
 At DASH source revision
 [`64985db`](https://github.com/securely1g/sonic-dash-api/commit/64985db0113ab06d9ae058fed53676e4c129d8c8),
