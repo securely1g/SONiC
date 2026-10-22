@@ -16,11 +16,11 @@ Apply the [component-source policy and dependency roles](source-builds-and-lockf
 
 ## Reuse shared inputs
 
-First look for compatible Bazel rules, modules, and toolchains, including the Bazel Central Registry. When the migration needs pinned Debian tools, reuse or extend `sonic-build-infra`'s `build_tools` set and its shared APT sources and lock mechanism. Keep target compiler packages in `sysroot`. Publish shared module changes through `sonic-bazel-registry`; component rules consume those inputs and own their generator actions.
+First look for compatible Bazel rules, modules, and toolchains, including the Bazel Central Registry. When the migration needs pinned Debian tools, reuse or extend `sonic-build-infra`'s `build_tools` set and its shared APT sources and lock mechanism. Follow the [single build-tools set policy](../SKILL.md#use-one-shared-build-tools-package-set) before proposing another execution-tool dependency set. Keep target compiler packages in `sysroot`. Publish shared module changes through `sonic-bazel-registry`; component rules consume those inputs and own their generator actions.
 
 Declare the tool's complete runtime dependencies: an executable alone may still load worker-installed libraries, invoke an interpreter from `PATH`, or read system dictionaries. Preserve the package payloads or runfiles required by the pinned implementation. Retire a component-local package lock and downloader after validating the replacement's tool versions and generated outputs.
 
-Separating the sets clarifies ownership and prevents target compiler inputs from becoming the default home for unrelated generator packages. It does not by itself select an architecture, guarantee hermetic execution, or establish which packages the repository rule downloads. Verify those properties in the pinned rule version and configured graph.
+Separating execution tools from the target sysroot clarifies ownership and prevents target compiler inputs from becoming the default home for unrelated generator packages. It does not by itself select an architecture, guarantee hermetic execution, or establish which packages the repository rule downloads. Verify those properties in the pinned rule version and configured graph.
 
 ## Put `cfg = "exec"` on the tool dependency
 
