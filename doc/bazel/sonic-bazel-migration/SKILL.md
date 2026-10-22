@@ -186,6 +186,12 @@ downstream integration, retaining generated locks and receipts. Follow the
 
 Classify dependencies by how they are consumed. Programs run by build actions, together with their private runtime libraries and data, belong to the execution side. The target system ABI foundation belongs to the compiler's sysroot; ordinary component and third-party libraries remain explicit target dependencies, whether source-built or imported from pinned packages. Prefer a compatible existing Bazel rule or toolchain; when pinned Debian packages supply execution tools, reuse or extend `sonic-build-infra`'s shared `build_tools` set instead of maintaining a component-local downloader and package lock.
 
+### Use one shared build-tools package set
+
+Use only the existing `sonic-build-infra` `build_tools` APT dependency set for packaged execution tools. Add required tools to that set. Consumers may select subsets and define runtime targets, such as `kernel_runtime` or `foreign_runtime`, from the shared packages; those targets do not require separate APT dependency sets.
+
+**Obtain explicit user approval before introducing another build-tools dependency set**, including a component-specific set such as `kernel_build_tools` or `p4_build_tools`. Explain the concrete requirement, why extending or selecting from `build_tools` cannot satisfy it, and the proposed additional set before implementation. General migration, build or CI approval does not authorize this exception. Honor approval already granted for that specific scope. This rule does not combine target-library or compiler-sysroot dependencies with execution tools.
+
 For custom rule attributes, use `cfg = "exec"` on the edge selecting a tool or its runtime bundle. Set `executable = True` only for an executable target, not a bundle or package payload. Keep target library dependencies in the consuming target's configuration. The `build_tools` name expresses ownership; the dependency transition selects execution configuration. Read [build tools and sysroot guidance](references/build-tools-and-sysroot.md) when adding generators, package-backed tools, or cross-compilation support, including the SAI example and validation requirements.
 
 ## Check Bazel Central Registry before custom modules
