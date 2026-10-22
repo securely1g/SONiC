@@ -166,11 +166,12 @@ not supply every Debian feature or automatic shared-library dependency analysis.
 Check the installed package and applicable upgrade/removal/configuration
 behavior, then real consumers with the declared runtime closure.
 
-Preserve the existing [DEB execution-approval boundary](../SKILL.md#require-explicit-approval-to-build-deb-packages-with-bazel).
-Inspect direct and transitive selected actions, including fixtures and wrappers,
-before execution. Fetching or extracting existing DEBs is the separate import
-path; it does not authorize producing new ones. Keep unaffected validation
-moving and report required checks that remain pending.
+Follow the [approval rule for new DEB package definitions](../SKILL.md#require-approval-before-adding-new-deb-package-definitions).
+Identify and obtain approval for a new package producer before adding its target
+or recipe. Existing approved targets may be built, rebuilt and tested through
+normal CI within the requested task; producing another package instance does
+not require renewed approval. Fetching or extracting existing DEBs is the
+separate import path and does not authorize adding a new producer.
 
 ## Common integration and validation
 
@@ -214,4 +215,4 @@ moving and report required checks that remain pending.
 
 Use the [migration checklist](migration-checklist.md) for the final completion
 record and the skill's existing publication/readiness rules for delivery. These
-references do not change merge, custom-module or DEB-execution authorization.
+references do not change merge, custom-module or approval for new DEB package definitions.

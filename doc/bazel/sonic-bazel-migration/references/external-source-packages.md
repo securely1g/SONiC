@@ -59,10 +59,12 @@ shell build framework when the standard rule suffices.
 - Stage installation inside the action, normally with the required installed
   prefix and `DESTDIR`. Avoid host installation, undeclared host headers/tools,
   package-manager calls and downloads during compilation.
-- Select compile/install targets, not `dpkg-buildpackage`, `sonic_deb` or another
-  package-producing wrapper. Inspect the transitive action graph and invoked
-  scripts before local or CI execution under the existing
-  [DEB execution rule](../SKILL.md#require-explicit-approval-to-build-deb-packages-with-bazel).
+- For this TAR-producing path, select compile/install targets without adding
+  `dpkg-buildpackage`, `sonic_deb` or another DEB producer. Inspect the transitive
+  action graph and invoked scripts to verify that output contract. Adding a
+  separately needed package definition follows the
+  [DEB package-definition approval rule](../SKILL.md#require-approval-before-adding-new-deb-package-definitions);
+  ordinary validation of existing approved package targets needs no new approval.
 
 Bazel caches the declared foreign build action. A source change can rerun the
 package's configure/Make build; do not claim per-source Bazel cache reuse.
@@ -87,8 +89,8 @@ Debian source metadata does not require generating a `.deb`. A runtime TAR is a
 filesystem payload; it does not provide Debian package installation, maintainer
 scripts or dpkg records. Do not fabricate those records or add a separate
 DEB-packaging module merely because control files are available. An independently
-requested DEB deliverable follows the separate Debian workflow and its existing
-execution approval boundary.
+requested DEB deliverable follows the separate Debian workflow: obtain approval
+before adding a new package definition, then validate the approved target normally.
 
 ## Validate and integrate the actual outputs
 

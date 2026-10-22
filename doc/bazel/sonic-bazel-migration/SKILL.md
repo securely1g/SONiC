@@ -80,13 +80,13 @@ Write build definitions that a SONiC maintainer can understand and edit directly
 
 **Review criterion:** A maintainer should be able to make a routine build change in the owning component's BUILD file, using documented shared settings, without understanding an additional custom build framework.
 
-## Require explicit approval to build DEB packages with Bazel
+## Require approval before adding new DEB package definitions
 
-Do not execute a Bazel invocation that directly or transitively creates a DEB package unless the user explicitly approves that DEB-producing scope. This includes `bazel build`, `bazel test`, `bazel run`, and CI; Bazel-native packaging rules such as `sonic_deb`; and Bazel actions that invoke `dpkg-deb`, `dpkg-buildpackage`, Make, or another wrapper. Fixture DEBs are included.
+Obtain explicit user approval before introducing a new DEB package definition or packaging target into the build system. This includes new `sonic_deb` targets, Debian package recipes, and wrappers that add a new DEB output. Explain the package's consumer and why an existing output or runtime/debug TAR does not satisfy it before implementation. A general migration, build, validation or CI request does not authorize adding a new package producer.
 
-Before executing Bazel builds, tests, runnable targets, or CI, inspect the selected targets and their dependencies for DEB generation. Without approval, omit DEB-producing selections, continue unaffected work, and report any required validation left pending. General migration, build, validation, CI, or “make CI pass” requests do not constitute approval. Honor explicit approval already granted for the same scope while it remains in force.
+This approval concerns the package definition, not each `.deb` file produced from it. Once the package-producing scope is approved, ordinary builds, rebuilds, tests and CI of those existing targets do not require another DEB approval. A request to build or validate an existing approved target authorizes its normal package instances, including test fixtures and transitive outputs. For example, rerunning an approved kernel package target to validate a toolchain change needs no new DEB approval; adding a new development-package target does. Honor earlier approval while it remains in force and stay within the requested task.
 
-Authoring, editing, configuring, enabling, or inspecting Bazel support does not require this approval by itself; any resulting execution that creates a DEB does. The rule does not cover fetching, verifying, or extracting existing DEBs as external inputs, producing runtime or debug tar archives, or DEB packaging executed outside Bazel. This rule does not itself authorize changes to existing targets or workflows.
+Before adding package support, distinguish a new producer from execution or maintenance of an existing approved one. Do not stop an authorized validation run solely because it executes `dpkg-deb`, `dpkg-buildpackage`, Make or another packaging tool. Fetching, verifying or extracting existing DEBs and producing runtime/debug TARs do not introduce new DEB package definitions. Preserve existing Make package paths unless the user requests changes to them.
 
 ## Build OCI images with Bazel-built project runtime dependencies
 
@@ -102,7 +102,7 @@ Make may still orchestrate the rest of the VS installer and the agreed metadata/
 
 For TAR-to-OCI work, consume the owner's source-built runtime TAR directly, with matching debug TARs for native ELF outputs. Add missing source/TAR support with that owner. Do not introduce new DEB production, or the CI, registry entries and shared helpers supporting it, merely to reproduce legacy Make outputs, provide debug symbols, or feed OCI assembly.
 
-Before proposing new DEB packaging, identify a concrete consumer repository and target or build step that requires an installable `.deb`, and explain why the TAR interface cannot satisfy it. Keep that separately scoped package work independent of OCI consumers that only need TARs. The existence of a legacy Debian recipe or another optional packaging proposal alone does not establish this need. A genuine DEB consumer does not waive the existing explicit approval requirement for DEB-producing execution.
+Before proposing new DEB packaging, identify a concrete consumer repository and target or build step that requires an installable `.deb`, and explain why the TAR interface cannot satisfy it. Keep that separately scoped package work independent of OCI consumers that only need TARs. The existence of a legacy Debian recipe or another optional packaging proposal alone does not establish this need. A genuine DEB consumer does not waive the explicit approval requirement for adding a new DEB package definition.
 
 Preserve the legacy Make build, Debian recipes/control files/scripts, package outputs, default selection, and legacy CI unless the user separately requests changes to that path. Adding a Bazel TAR path does not authorize removing or rewiring the Make package producer. Existing pinned Debian binary inputs and host/kernel installer interfaces that genuinely consume DEBs remain valid separate paths.
 
@@ -112,7 +112,7 @@ Preserve required runtime installation behavior and metadata when composing TARs
 
 For Docker-to-Bazel migration, put new or changed dependency source-build and runtime/debug TAR support in separate dependency PRs, one per producing component. For example, libnl3's source/TAR support belongs in one PR, libyang3's in another, and their OCI integration in the container PR. When a separately scoped consumer requires DEBs, keep related runtime, development and debug packages from the same component together.
 
-Keep each dependency's build targets, packaging, tests and documentation with its owner. The container PR consumes those targets/versions and contains image composition, Make handoff and image validation. Reuse existing compatible dependency targets without creating unnecessary producer PRs. Link actual prerequisites and follow the existing registry and dependency-readiness rules. Splitting the work does not waive the runtime source-build requirement or require new DEB outputs when runtime/debug TARs already satisfy the consumer; the DEB-execution approval boundary remains unchanged.
+Keep each dependency's build targets, packaging, tests and documentation with its owner. The container PR consumes those targets/versions and contains image composition, Make handoff and image validation. Reuse existing compatible dependency targets without creating unnecessary producer PRs. Link actual prerequisites and follow the existing registry and dependency-readiness rules. Splitting the work does not waive the runtime source-build requirement or require new DEB outputs when runtime/debug TARs already satisfy the consumer; adding a new DEB package definition still requires explicit approval.
 
 ## Reuse upstream components for DEB-to-OCI assembly
 
@@ -126,7 +126,7 @@ Declare extraction and image assembly directly in the consuming BUILD file with 
 
 **Any deviation requires explicit user approval before implementation.** Verify the pinned upstream APIs, explain the concrete gap and smallest proposed alternative, and record the approved scope in the PR or migration evidence. Missing upstream features, an existing custom implementation, or general migration/CI approval do not waive this requirement. Honor already-granted approval for the same specific deviation. Continue unaffected work while approval is pending.
 
-Importing existing DEBs remains separate from DEB generation and does not authorize running maintainer scripts or claiming full package installation. Follow the [Docker template's import guidance](references/docker-image-template.md#use-upstream-tools-for-imported-deb-layers) and preserve the existing DEB-generation approval boundary.
+Importing existing DEBs remains separate from DEB generation and does not authorize running maintainer scripts or claiming full package installation. Follow the [Docker template's import guidance](references/docker-image-template.md#use-upstream-tools-for-imported-deb-layers) and obtain approval before adding a new DEB package definition.
 
 ## Build the component from source with pinned external dependencies
 
@@ -136,7 +136,7 @@ For an individual component migration, external dependencies may be pinned APT p
 
 ### Retain upstream configure/Make for external source packages
 
-When migrating an external source package while retaining its build system, use declared `rules_foreign_cc` actions for its upstream configure/Make build and stage the installed files into runtime and matching debug TARs. Follow [external source packages](references/external-source-packages.md) for source preparation, declared tools and dependencies, cache boundaries, and validation. Reuse Debian-maintained patches and copyright from the pinned Debian source archive when that is the SONiC baseline; do not duplicate them in registry overlays. This source-build path does not produce DEBs or require a separate DEB-packaging module. Preserve the existing central-registry check, dependency ownership and DEB-execution approval rules.
+When migrating an external source package while retaining its build system, use declared `rules_foreign_cc` actions for its upstream configure/Make build and stage the installed files into runtime and matching debug TARs. Follow [external source packages](references/external-source-packages.md) for source preparation, declared tools and dependencies, cache boundaries, and validation. Reuse Debian-maintained patches and copyright from the pinned Debian source archive when that is the SONiC baseline; do not duplicate them in registry overlays. This source-build path does not produce DEBs or require a separate DEB-packaging module. Preserve the existing central-registry check, dependency ownership and approval rule for new DEB package definitions.
 
 ## Keep reusable Rust libraries with their owners
 

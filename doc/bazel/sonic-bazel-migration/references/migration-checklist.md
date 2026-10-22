@@ -11,7 +11,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Plan separate PRs for independent features. Identify each feature's concrete consumers, link their PRs when available, and explain the target/build path and need; follow the [feature-splitting workflow](shared-dependency-workflow.md#split-features-and-identify-their-consumers).
 - Inventory existing Make/Autotools/CMake or other build commands and any existing Bazel port.
 - Record only the outputs required by the current consumer: libraries, executables, generated files, bindings, TARs, Debian packages, wheels, or images. For TAR-to-OCI, apply the [output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci) and identify any genuine separate DEB consumer before proposing package work. Preserve the legacy Make package path and its CI.
-- Record any explicit approval to execute Bazel actions that create DEB packages and the scope it covers. Without it, do not run those actions.
+- Identify any proposed new DEB package definitions or packaging targets and record explicit approval before adding them. Record existing approved package scope; ordinary builds, rebuilds, tests and CI of those targets need no renewed DEB approval.
 - Record supported OS releases, execution/target architectures, feature flags, optional dependencies, and required services.
 - Capture reference artifacts and test results tied to a known source revision and environment.
 - For a PR refresh, record the current base and head and validate their combination; check whether the desired fix already exists before preserving a workaround.
@@ -53,7 +53,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Declare generated inputs and their dependencies. Make externally supplied generated files explicit interfaces when migration requires them.
 - Preserve public include paths, target interfaces, link behavior, and feature selections needed by consumers.
 - Use explicit required target lists for validation; inspect incompatible and manual targets deliberately.
-- Identify direct and transitive actions that create DEBs, including test fixtures and wrappers, so validation target selections respect the execution approval rule.
+- Distinguish new DEB package definitions from instances produced by existing approved targets, including test fixtures and wrappers. Obtain approval before adding a new producer; preserve ordinary validation of existing approved targets.
 
 **Completion evidence:** clean builds of every required target and a reviewed mapping from legacy inputs/outputs to Bazel targets.
 
@@ -79,7 +79,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - For claimed cross-compilation support, verify configured tool architectures, run the generator on the execution platform, and compile its output for the target. Native AMD64 and ARM64 builds alone do not establish cross-compilation correctness.
 - Pin CI tools and userspace inputs according to repository conventions; check Bazel formatting.
 - Build explicit output and test targets and make artifact collection fail on missing required files.
-- Before executing Bazel builds, tests, runnable targets, or CI, verify that the selected targets do not create DEBs unless explicit approval covers them. Omit unapproved DEB-producing selections, continue unaffected validation, and record any required checks left pending.
+- Run the required builds, tests and CI for existing approved package targets within the task scope. Do not request approval again just because validation produces fresh DEB files. If validation needs a new package definition or packaging target, obtain approval before introducing it.
 - Inspect downloaded artifacts as consumers receive them.
 - Before publishing or updating a build-infra or registry PR, verify it contains exactly one commit relative to its actual base. After a split, verify independent CI selection and reconcile source/consumer descriptions and Project dependency links for each feature.
 - Verify a fresh checkout without `MODULE.bazel.lock` builds for each declared configuration, preserves canonical package locks and their dependency selections, produces the ignored Bazel lock as retained CI evidence, and leaves tracked files unchanged. Synchronize workflows, collectors, and documented commands.
