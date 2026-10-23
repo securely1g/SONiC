@@ -64,8 +64,8 @@ Search existing shared PRs and registrations before implementing another fix.
 Choose a version for the required configuration set, not simply because it is
 newest or merged. An upgrade can also change compiler hardening, optimization,
 linking, deployment stripping, and debug rules. Follow the registry version policy;
-preserve existing published entries and production patch bytes when they are not
-the subject of the change.
+preserve published source and build inputs and use a new version for changes to
+those inputs.
 
 Apply the [component-source and lockfile policy](source-builds-and-lockfiles.md):
 the component being migrated must build from its declared source. External
@@ -75,8 +75,9 @@ package imports as dependency source builds or require their replacement merely
 to complete a component migration. Keep generated Bazel resolution state out of
 Git without removing explicit declarations and package locks. When changing a
 published registration's implementation, add a new version, verify actual
-consumer resolution, and preserve the historical entry unchanged. Apply the
-draft-version distinction below to entries introduced by an open PR.
+consumer resolution, and preserve its historical source and build inputs.
+Documentation and standalone tests follow the maintenance boundary below. Apply
+the draft-version distinction to entries introduced by an open PR.
 
 ## Select one endpoint per registry repository
 
@@ -87,15 +88,16 @@ make branches or snapshots of the same repository independent registries. Keep
 separate registries such as SONiC and Bazel Central Registry when required by the
 graph. Local builds and CI follow the same
 [maintained-branch policy](../SKILL.md#use-main-registry-urls-for-local-builds-and-ci).
-Commit the canonical `main` URL in `.bazelrc`; do not maintain a separate local
-registry SHA or a CI-only rewrite from that SHA to `main`.
+Commit the canonical `main` URL in `.bazelrc`; do not maintain a separate
+permanent local registry SHA or a CI-only rewrite from that SHA to `main`.
 
 When refreshing a consumer:
 
 1. Record its current registry URL, required module versions, overrides,
    and supported native architecture and feature matrix. Inspect the registry's
    current canonical `main` and record its checked SHA as validation evidence.
-   Both local builds and CI use the maintained branch URL, not that recorded SHA.
+   Normal local builds and CI use the maintained branch URL. Unmerged candidates
+   use the explicit temporary selection in step 3.
 2. Verify that the candidate contains every required registration from that
    repository. Preserve compatible module versions and source pins. When changes
    are needed, update affected direct and transitive module selections together;
@@ -106,8 +108,10 @@ When refreshing a consumer:
    Draft validation, locally or in CI, may explicitly select one authorized,
    reviewed temporary branch containing those entries, such as a stack of
    one-module registry PRs. Name the missing module versions and prerequisite
-   PRs, and record the branch's observed commit without putting that SHA in the
-   URL. The temporary selection must replace the default endpoint, not append
+   PRs. A branch URL selects its latest contents; use its verified full commit
+   in the temporary URL to reproduce an exact candidate, and retain that commit
+   with the validation evidence. The temporary selection must replace the
+   default endpoint, not append
    to it: Bazel's repeatable `--registry` option can retain `.bazelrc` entries
    when another is supplied on the command line. Inspect the effective options.
    If the combination cannot be prepared or validated, retain a blocker naming
@@ -123,10 +127,30 @@ When refreshing a consumer:
    results, and pending coverage; an AMD64 pass alone does not establish ARM64
    compatibility. A registry selection is only a candidate until these checks pass.
 
+For a hypothetical example, suppose `main` has published
+`rules_distroless@0.9.4.sonic.11` and a reviewed PR introduces unpublished
+`0.9.4.sonic.12`. Recheck actual publication before using this pattern.
+After substituting that PR's reviewed full commit for `FULL_COMMIT`,
+temporarily replace the existing SONiC registry line in the validation checkout's
+`.bazelrc` so its complete registry list is:
+
+```text
+common --registry=https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/FULL_COMMIT
+common --registry=https://bcr.bazel.build
+```
+
+The consumer's `MODULE.bazel` still declares the candidate's normal module
+version, here `bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.12")`;
+the registry URL selects the exact unpublished recipe for that version. Run the
+consumer's usual Bazel command with `--announce_rc` and inspect imported rc files
+and CI flags too: do not add another `--registry` flag while the original `main`
+entry remains effective. Preserve other build settings and restore the original
+maintained-branch selection after the temporary validation. Keep the consumer
+Draft until its dependencies are published and the normal endpoint is restored.
+
 Keep claims of "latest compatible" tied to the inspected canonical `main`
-revision and validation evidence. Identify temporary branches as Draft validation
-inputs even when their consumer checks pass. Missing entries do not justify a
-registry SHA; any verified Bazel exception must meet the separate policy above.
+revision and validation evidence. Identify temporary branches or full-commit
+snapshots as Draft validation inputs even when their consumer checks pass.
 
 ## Require landed registry endpoints before review
 
@@ -136,8 +160,9 @@ all temporary validation overrides, even after their entries merge. A verified
 and documented Bazel exception must select a registry commit proven landed on
 the maintained branch using the
 [provenance checks](pr-merge-readiness.md#verify-the-selected-source-revisions).
-There is no separate immutable-snapshot policy for local builds. An unlanded
-snapshot does not qualify because its tree matches a landed commit. This gate
+Temporary commit pins are for Draft validation, not an alternative readiness
+policy for local builds. An unlanded snapshot does not qualify because its tree
+matches a landed commit. This gate
 covers consumed dependencies, not a registry PR's own proposed entries under test.
 
 Check every required direct and transitive registration at the chosen endpoint,
@@ -185,6 +210,38 @@ installer branch and changing its version number would lose the lock-import
 behavior or its coverage. The integration test module must select `.sonic.12`,
 so passing tests establish the new candidate's behavior.
 
+## Maintain published entries without changing build inputs
+
+A published module version identifies fixed source and build inputs. Changes to
+`MODULE.bazel`, `source.json`, patches, overlays or other files fetched or consumed
+by the module require a new version. This includes test files incorporated into
+the fetched module through a patch or overlay, even if ordinary consumers do not
+run those tests.
+
+Documentation and standalone CI test maintenance may update the same published
+version. The allowed regular-file locations are `README.md`, `PATCHES.md`,
+`docs/**`, `presubmit.json` and `tests/**` within the version directory, provided
+they are not fetched through the recipe's `url`, `mirror_urls`, `patches` or
+`overlay`, or otherwise part of its source or build inputs. A `docs_url` link
+alone does not make the linked documentation a fetched input; `source.json`
+itself remains fixed. Eligible regular files may change their executable bit
+(`100644`/`100755`); protected inputs retain both their contents and modes.
+Other paths, symlinks and submodules are not maintenance exemptions.
+Unknown recipe fields and non-archive source layouts
+retain whole-entry immutability until their input boundary is supported. Keep
+the published version directory and metadata entry.
+
+In the hypothetical version state above, correcting `.sonic.11`'s `README.md`
+or adding a standalone integration test can retain that published version.
+Changing its source URL, archive digest, BUILD overlay or test patch belongs in
+the `.sonic.12` candidate. While `.sonic.12` remains unreleased, its inputs may
+change in place under the draft-version rule below.
+
+Review both the changed paths and their role in the source recipe, and run the
+affected test coverage. Older registry CI may still reject all published-entry
+changes until this policy's implementation lands; report that prerequisite rather
+than bypassing the check or claiming it passed.
+
 <a id="keep-one-current-version-in-an-unmerged-registry-pr"></a>
 
 ## Keep one unreleased candidate per module
@@ -201,8 +258,9 @@ its review diff and commit count; it does not establish publication.
   evidence. Search other open registry PRs touching the same module, including
   independent branches, and inspect their cumulative changes and source revisions.
   Do not assume a clean one-version diff proves the whole stack complies.
-- Preserve published version directories and their entries in module metadata. Keep
-  one current unreleased candidate for the module: update it as the source
+- Preserve published source/build inputs, version directories and their entries
+  in module metadata; apply the maintenance exception above only to eligible files.
+  Keep one current unreleased candidate for the module: update it as the source
   changes and remove superseded draft directories and metadata together. Keep
   independent feature reviews separate, but coordinate their registrations rather
   than retaining an extra draft release for each PR boundary. An unmerged stacked
@@ -228,16 +286,17 @@ its review diff and commit count; it does not establish publication.
   one commit; same-feature corrections still belong in that feature's commit.
 - Immediately before deleting a draft entry or publishing a rewrite, reread the
   maintained branch, explicit release evidence, and affected PR heads/bases. If a
-  candidate has now published, preserve its bytes and use the next revision for
-  further changes. Reassess rather than applying an earlier cleanup plan. After a
-  prerequisite merges, [rebase away already-landed changes](base-branch-rebase.md)
+  candidate has now published, preserve its source/build inputs and use the next
+  revision for changes to those inputs. Eligible documentation/test maintenance
+  does not require a new revision. Reassess rather than applying an earlier cleanup
+  plan. After a prerequisite merges, [rebase away already-landed changes](base-branch-rebase.md)
   and [refresh consumers](upstream-merge-reassessment.md); do not retain duplicate
   registrations or obsolete stacked-dependency descriptions.
 - Run the registry candidate-policy check and inspect the native CI plan for the
   final tree. The check must compare with the maintained publication baseline,
   not only the selected stacked PR base; there should be no jobs for removed
   drafts. A branch check can detect multiple candidates present in that tree and
-  changes to published entries. It cannot discover other open PR branches,
+  changes to protected published inputs. It cannot discover other open PR branches,
   independently published releases, or stale consumer selections. The inventories
   above remain required even when registry CI is green.
 

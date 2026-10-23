@@ -229,7 +229,7 @@ historical snapshot as current status.
 | Debug artifacts must match the deployed ELF. | Split runtime and symbols from the same linked output; verify build IDs, debug-link checksum, and debugger lookup in delivered artifacts. |
 | Registry CI does not establish source PR health. | Require current-revision source PR CI for declared configurations, then validate the registered module separately. Inspect downloaded artifacts and their provenance. |
 | Generated APT resolution data made the Bazel lock roughly 5.7 MB. | Keep explicit inputs pinned, regenerate the ignored Bazel lock, and archive resolution evidence in CI. Size is context; the no-check-in rule applies regardless of file size. |
-| Commit-hash suffix order need not follow release order. | Follow the registry version policy, verify the intended successor wins resolution, and preserve published versions unchanged. |
+| Commit-hash suffix order need not follow release order. | Follow the registry version policy, verify the intended successor wins resolution, and preserve published source/build inputs. Documentation and standalone tests follow the [maintenance boundary](shared-dependency-workflow.md#maintain-published-entries-without-changing-build-inputs). |
 | Keeping every draft registry revision turned one DASH proposal into four versions and eight native jobs. | Keep one unreleased candidate per module across the affected open stack; preserve published entries, recheck publication before cleanup, refresh consumer selections, and remove superseded draft metadata and CI jobs together. |
 
 At DASH source revision
