@@ -233,18 +233,18 @@ When changing toolchain dependencies, refreshing a stacked PR, or retiring a wor
 
 ## Use main registry URLs for local builds and CI
 
-Use the registry's canonical maintained URL for both local builds and CI. For `securely1g/sonic-bazel-registry`, commit this configuration in `.bazelrc`:
+Use the registry's canonical maintained URL as the committed default for local builds and CI. For `securely1g/sonic-bazel-registry`, commit this configuration in `.bazelrc`:
 
 ```text
 common --registry=https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/main
 common --registry=https://bcr.bazel.build
 ```
 
-For other Git-hosted registries, use their maintained branch, such as `main` or `master`. Apply the same choice to `.bazelrc` imports, workflows, wrapper scripts, local build instructions and CI reproduction commands. Remove separate local snapshot settings and CI-only rewrites that merely switch a registry SHA to `main`.
+For other Git-hosted registries, use their maintained branch, such as `main` or `master`. Apply the same default to `.bazelrc` imports, workflows, wrapper scripts, local build instructions and CI reproduction commands. Remove permanent local snapshot settings and CI-only rewrites that merely switch a registry SHA to `main`; temporary validation of unmerged work follows the exception below.
 
-This rule changes where Bazel reads the registry catalog, not the selected dependency versions. Keep module versions, source commits and checksums, toolchain and APT snapshots, and package locks pinned. Retain the generated resolution lock and the observed registry revision with validation evidence. A general reproducibility preference or the absence of a committed `MODULE.bazel.lock` does not justify a registry commit pin.
+This rule changes where Bazel reads the registry catalog, not the selected dependency versions. Keep module versions, source commits and checksums, toolchain and APT snapshots, and package locks pinned. Retain the generated resolution lock and the observed registry revision with validation evidence. A general reproducibility preference or the absence of a committed `MODULE.bazel.lock` does not justify permanently pinning the published registry catalog.
 
-A verified Bazel requirement may justify an explicitly documented exception. Record the affected Bazel version and configuration, the concrete failure or documented constraint, and why the maintained branch URL cannot satisfy it. There is no separate exception for local builds. Missing unmerged entries use the temporary Draft workflow below, not a registry SHA.
+A verified Bazel requirement may justify an explicitly documented exception. Record the affected Bazel version and configuration, the concrete failure or documented constraint, and why the maintained branch URL cannot satisfy it. Missing unmerged entries use the temporary Draft workflow below, which applies equally to local builds and CI.
 
 ## Use one registry endpoint per repository
 
@@ -252,7 +252,7 @@ For each consumer configuration, use one endpoint for each registry repository. 
 
 Check every required module at the canonical maintained branch before changing active configuration. Update affected module versions and related pins together only when needed for compatibility; do not float or upgrade dependency versions merely because the registry URL uses `main`. Verify resolved modules, source revisions and integrity, and the required native architecture and feature coverage. Record the checked registry revision as evidence without substituting it into the URL.
 
-If `main` lacks required unmerged entries, keep the committed default `.bazelrc` on `main`. Local or CI Draft validation may explicitly select one authorized, reviewed temporary branch containing those entries. Name the missing module versions and prerequisite PRs, record the branch's observed commit, and replace the default endpoint rather than appending another endpoint for the same registry. If this cannot be prepared or validated, report the missing entries as a blocker. Preserve the one-module-per-registry-PR boundary and existing merge authority; this rule does not authorize merging prerequisites. Follow [registry selection and validation](references/shared-dependency-workflow.md#select-one-endpoint-per-registry-repository) when refreshing a consumer.
+If `main` lacks required unmerged entries, keep the committed default `.bazelrc` on `main`. Local or CI Draft validation may explicitly select one authorized, reviewed temporary registry branch; pin its full commit in the temporary URL when reproducing a particular candidate. Name the missing module versions and prerequisite PRs, record the selected commit, and replace the default endpoint rather than appending another endpoint for the same registry. An unmerged candidate remains mutable under the same module version; the temporary registry commit identifies the exact recipe tested. If this cannot be prepared or validated, report the missing entries as a blocker. Preserve the one-module-per-registry-PR boundary and existing merge authority; this rule does not authorize merging prerequisites. Follow [registry selection and validation](references/shared-dependency-workflow.md#select-one-endpoint-per-registry-repository) when refreshing a consumer.
 
 Before a consumer becomes or remains Ready for review, remove temporary registry overrides and verify that local builds and CI both use the canonical maintained `main`/`master` URL. Any documented Bazel exception must also use a registry commit verified landed on that branch. Verify every required entry and its selected sources, and update effective configuration, workflows and documentation together. Apply the [registry readiness checks](references/shared-dependency-workflow.md#require-landed-registry-endpoints-before-review) to quiet Ready PRs too; missing or unverifiable prerequisites keep or return the consumer to Draft.
 
@@ -388,7 +388,7 @@ On every complete successful babysitter cycle, assess each open in-scope PR usin
 
 Before adding or updating registry module versions, read and follow the [SONiC registry version policy](https://github.com/securely1g/sonic-bazel-registry/blob/main/README.md#module-version-convention), including its publishing and migration guidance. Use that policy as the source of truth for source classification, version naming, patch revisions, source commit IDs, and dependency-resolution checks.
 
-Keep one current unreleased candidate per module across the affected open PR stack. Inventory other open registrations of that module; a separate feature PR or unmerged stacked base does not establish a published version. Preserve entries published on the maintained registry branch or by a verified explicit release unchanged. Recheck publication before draft cleanup, then update affected consumers' declared and resolved versions and temporary source pins together. Use [the draft-version workflow](references/shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module) for coordinated edits, registry CI coverage, and reassessment after a merge.
+Keep one current unreleased candidate per module across the affected open PR stack. A version is published when it is on the maintained registry branch or has a verified explicit release independent of the draft stack; an open PR, unmerged stacked base or successful CI does not publish it. Inventory other open registrations of that module. Preserve published source and build inputs; documentation and standalone test maintenance may update the same version only within the [published-entry maintenance boundary](references/shared-dependency-workflow.md#maintain-published-entries-without-changing-build-inputs). Recheck publication before draft cleanup, then update affected consumers' declared and resolved versions and temporary source pins together. Use [the draft-version workflow](references/shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module) for coordinated edits, registry CI coverage, and reassessment after a merge.
 
 ### Carry published patches and tests into new versions
 
