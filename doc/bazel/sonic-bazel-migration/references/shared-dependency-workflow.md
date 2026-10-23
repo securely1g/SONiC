@@ -155,6 +155,36 @@ only for Draft validation; revisit it after those prerequisites land. Record
 checked revisions, selection evidence and the verified Draft/Ready result without
 repeated alerts.
 
+## Carry forward published patches and tests
+
+Treat a new module version as the previous published version plus the intended
+changes. A higher version number does not automatically inherit registry patches
+or tests.
+
+1. Read the previous published entry from the current maintained registry branch,
+   including its current test coverage. Record the baseline commit and compare
+   patch and test inventories; an old PR snapshot can omit later fixes or tests.
+2. Carry forward its patches and supporting overlays before adding the new
+   feature. Preserve unchanged patch bytes, document necessary adaptations, and
+   follow the [upstream-verification rule](../SKILL.md#verify-existing-patches-before-switching-upstream)
+   before removing a patch. Retain applicable regression coverage. In a stack,
+   also preserve the prerequisite PR's additional changes and tests.
+3. Retain fixtures, integration modules, build/test targets and native architecture
+   coverage. Keep inherited tests selected in `presubmit.json`; storing their
+   files without running them is insufficient. Update the integration module's
+   dependency to the new candidate and verify the resolved version.
+4. Run inherited and new tests on the supported native architectures. Compare
+   identities and behavior, not only test counts, and record any adaptations or
+   verified upstream replacements in the PR.
+
+For example, `rules_distroless@0.9.4.sonic.11` supplies locked APT imports and
+25 tests. A `.sonic.12` candidate adding Debian installation must retain the
+importer, its patches and all 25 tests, then add the two installer checks for 27
+tests. Copying an older
+installer branch and changing its version number would lose the lock-import
+behavior or its coverage. The integration test module must select `.sonic.12`,
+so passing tests establish the new candidate's behavior.
+
 <a id="keep-one-current-version-in-an-unmerged-registry-pr"></a>
 
 ## Keep one unreleased candidate per module
