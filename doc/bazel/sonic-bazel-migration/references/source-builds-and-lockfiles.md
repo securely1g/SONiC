@@ -58,8 +58,12 @@ third-party source rules or package adapters, patches, overlays, language
 bindings, and dependency-owned tests in `sonic-bazel-registry`; SONiC-owned
 dependency source support belongs in its own repository and is then registered.
 Shared toolchain/build/packaging logic belongs in `sonic-build-infra`. Follow the
-existing one-module and one-commit-per-shared-PR rules. Preserve published
-registry releases unchanged when introducing a successor. For unreleased entries
+existing one-module-per-registry-PR rule and keep
+[one logical commit per independent fix or feature](../SKILL.md#keep-one-logical-commit-per-fix-or-feature).
+A single-feature PR normally has one own commit; corrections stay with that
+feature. User-authorized consolidations preserve separate feature commits even
+when they update one unpublished module version. Preserve published registry
+releases unchanged when introducing a successor. For unreleased entries
 across the affected open stack, [keep one current candidate per module](shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module)
 instead of retaining every intermediate source revision.
 
