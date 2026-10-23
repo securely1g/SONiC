@@ -53,9 +53,11 @@ Put independently useful features in separate PRs, even when they share a Bazel 
 
 For each shared feature, the PR description must identify the concrete consumers that need the change, link their PRs when available, and explain the target or build path that uses it, why it is needed, and the resulting behavior. When no consumer PR exists, name the verified consumer repository and target and state that limitation. Distinguish direct consumers from registry-mediated use and identify when consumers still select an older snapshot containing the implementation. When splitting a PR, update affected consumer descriptions and Project dependency links to match each feature. Follow the [feature-splitting workflow](references/shared-dependency-workflow.md#split-features-and-identify-their-consumers) for independent validation and the wheel-layer/ownership example.
 
-## Keep shared infrastructure pull requests to one commit
+## Keep one logical commit per fix or feature
 
-Keep every open `sonic-build-infra` or `sonic-bazel-registry` PR created or updated by this workflow at exactly one commit relative to its current PR base, including a stacked base branch. Apply this to each resulting feature PR after a split. Updating an existing open PR includes consolidating its current commits; fold later changes into the same commit. Verify the commit count and cumulative diff after each update.
+Keep one logical commit per independent fix or feature. A single-feature `sonic-build-infra` or `sonic-bazel-registry` PR normally has one own commit relative to its current PR base, including a stacked base. Fold review corrections and follow-up repairs for that same feature into its commit; do not keep a separate commit for each editing round.
+
+When the user authorizes combining independent fixes or features in one PR, preserve a separate commit for each. Updating one unpublished registry version does not require squashing those commits together. For example, two independent fixes can both update `libyang-python/3.1.0.sonic.3` while remaining two commits. Follow the [candidate-update example](references/shared-dependency-workflow.md#one-candidate-can-have-two-feature-commits), and preserve explicit user-requested commit boundaries. Version cleanup alone does not authorize combining separate feature PRs. Verify the logical boundaries, commit count relative to the actual base, and cumulative diff after each update.
 
 Follow the existing authorization and identity rules for rewrites, verify the current remote SHA, and use an exact `--force-with-lease`. Preserve truthful contributor attribution in the resulting commit, including appropriate `Co-authored-by` trailers. Do not rewrite merged target branches or sweep untouched PRs to enforce this rule.
 

@@ -30,7 +30,13 @@ Common PR #11 illustrates the rule: after Common #9's YANG fixture fix lands in
 `master`, rebase to retain only the Rust binding commit. Drop the redundant
 fixture commit and merge-only history. Do not retain an obsolete base or create
 empty commits to preserve an old count. Keep independent remaining changes in
-separate commits; apply the one-commit rule to updated infra/registry PRs.
+separate logical commits, including in build-infra and registry PRs. Fold
+corrections to the same fix or feature into its commit. A single-feature PR
+normally has one own commit relative to its selected base; a user-authorized
+consolidation preserves one commit per independent fix or feature, even when
+they update the same unpublished module version. Follow the
+[logical-commit rule](../SKILL.md#keep-one-logical-commit-per-fix-or-feature)
+when checking the resulting history.
 
 If all changes are already in the base, record the PR as superseded and report
 through the existing workflow. Do not push an empty replacement, close/merge

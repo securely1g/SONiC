@@ -8,8 +8,12 @@ for every dependency edit, or grant additional publishing or merge authority.
 ## Split features and identify their consumers
 
 - Keep independent features in separate PRs. Include the implementation, regression
-  coverage and necessary CI changes for that feature. Keep each build-infra or
-  registry PR at one commit relative to its actual base, including stacked bases.
+  coverage and necessary CI changes for that feature. Keep one logical commit per
+  independent fix or feature; a single-feature build-infra or registry PR normally
+  has one own commit relative to its actual base, including a stacked base. Fold
+  corrections into their feature's commit. If the user authorizes consolidation,
+  preserve the separate feature commits even when they update one unpublished
+  version. Follow the [commit-boundary rule](../SKILL.md#keep-one-logical-commit-per-fix-or-feature).
 - Explain each feature's need in its PR description: link its consumer PRs when
   available, name the target or build path that uses it, and describe the failure
   or missing behavior it addresses. When no consumer PR exists, state that and
@@ -189,7 +193,9 @@ its review diff and commit count; it does not establish publication.
   patches, metadata and presubmit consistent. Retain previously referenced source
   commits for historical evidence without treating those snapshots as published
   registry versions. Rewrite PR descriptions around the final contents and current
-  prerequisites; follow the existing one-commit and exact force-push lease rules.
+  prerequisites; preserve one logical commit per independent fix or feature and
+  follow the exact force-push lease rules. One candidate version does not mean
+  one commit; same-feature corrections still belong in that feature's commit.
 - Immediately before deleting a draft entry or publishing a rewrite, reread the
   maintained branch, explicit release evidence, and affected PR heads/bases. If a
   candidate has now published, preserve its bytes and use the next revision for
@@ -231,6 +237,47 @@ For example, consider `libyang-python/3.1.0.sonic.3` in
 
 Recheck the live state when applying this example. A merge between those two
 observations changes which entries may be replaced.
+
+### One candidate can have two feature commits
+
+The following is an illustrative workflow, not a claim about the bugs or live
+state of the linked PRs. Assume `main` has published `libyang-python@3.1.0.sonic.2`:
+
+| Step | Candidate directories after the step | Logical commits above `main` |
+| --- | --- | --- |
+| Parent PR adds a fix for Python extension linking. | Published `.2`, unpublished `.3`. | A: Fix Python extension linking. |
+| Child PR adds runtime package metadata as a separate feature in `.4`. | Published `.2`, unpublished `.3` and `.4`. The candidate check fails. | A, then B: Include runtime package metadata. |
+| Repair the child PR to apply B to `.3`, retaining A's linking fix; remove unpublished `.4` and its metadata entry. | Published `.2`, one unpublished `.3` containing both changes. | A, then B. Keep two commits because these are independent changes. |
+
+Complete the repair as follows:
+
+1. Fetch the maintained branch, affected PR heads and bases. Verify that `.3` and
+   `.4` are still unpublished, inventory other open registrations and consumers,
+   and record the intended commit boundaries before rewriting.
+2. Keep A's feature commit. Rewrite B so its implementation, tests and metadata
+   update `.3` instead of creating `.4`, preserving A's behavior. Fold fixes to B
+   into B; do not squash B into A merely because both touch the same directory.
+   Preserve contributor attribution and verify the combined diff. If the two
+   features remain separate stacked PRs, each has one own commit relative to its
+   actual base; their combined history has two. If the user authorizes combining
+   them into one PR, that PR has two commits relative to `main`.
+3. Update consumers that selected `.4` to `.3`, including applicable overrides,
+   temporary registry/source selections and package pins. Regenerate ignored
+   Bazel resolution state and verify the selected `.3` actually contains both
+   required changes; editing only the PR description is insufficient.
+4. Recheck publication and remote heads immediately before cleanup or push. If
+   `.3` has published meanwhile, preserve it unchanged and use `.4` for B. Keep
+   published `.2` unchanged in either case. Use an exact force-push lease for an
+   authorized rewrite, then verify the remote history and diff.
+5. Run the candidate-policy planner against the maintained publication baseline.
+   With unpublished `.3` retained, verify that CI selects `.3` and no removed
+   `.4` jobs. Rerun the affected module and consumer checks on required native
+   AMD64 and ARM64 configurations. Record current heads, actual selection and
+   results; pending CI remains pending.
+
+The registry check enforces candidate and publication rules. The migration agent
+or babysitter preserves feature commits and updates consumers; the CI check does
+not rewrite branches or enforce the number of Git commits.
 
 ## Prove selection before extending the build machinery
 
