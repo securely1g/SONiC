@@ -286,6 +286,10 @@ The debug image should extend the exact runtime image whose symbols were collect
 - CodeQL and similar compiler-tracing analyzers must observe compilation after initialization. Use a fresh build configuration that prevents action-cache reuse from bypassing extraction, then compare analyzed source coverage with the previous pipeline.
 - Verify generated-code reporting as well as compilation. A generated wrapper can compile successfully while its findings remain outside the analyzer's reported source roots.
 
+### Keep default pull-request activity types
+
+Keep GitHub's default `pull_request` activity types (`opened`, `synchronize`, and `reopened`) unless there is a concrete, verified reason to change them. Leave `types` unset when the defaults cover the workflow. Do not add `ready_for_review` merely because a PR moves from Draft to Ready or is retargeted. For a justified change, explain the affected repository workflow, why the defaults are insufficient, and the expected before-and-after behavior in the PR description; verify the intended jobs run. Preserve justified existing event selections and unrelated branch/path filters. This rule does not replace the existing cleanup of temporary branch filters when a stacked PR becomes ready.
+
 ### Keep CodeQL informational
 
 Keep CodeQL running and report its actual results, including each language analysis and the aggregate CodeQL check. CodeQL is not a required PR merge check in this workflow. Require supported build/test checks; exclude CodeQL from required status checks, required workflows, code-scanning merge rules, and any required aggregate that would make its result block merging. Preserve other checks and protections.
