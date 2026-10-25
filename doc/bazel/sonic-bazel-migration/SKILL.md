@@ -216,6 +216,14 @@ If BCR already provides that dependency, **explicit user approval is required be
 
 When a custom module is approved, or no BCR entry exists, reuse upstream build definitions and add only the missing integration. Record the central modules/versions checked, the decision, and any required approval in the PR or migration evidence. Do not duplicate upstream rules merely because a SONiC registry entry is convenient.
 
+### Number maintained patches in application order
+
+Name locally maintained SONiC patches with four-digit prefixes in their declared application order: `0001-<description>.patch`, `0002-<description>.patch`, and so on. Keep the actual patch list or `series` in that same order; filenames alone do not determine application order.
+
+For example, [BMv2's source preparation in registry #108](https://github.com/securely1g/sonic-bazel-registry/pull/108) applies the Debian archive's patch series first, followed by `0001-use-boost-1.83.patch` and `0002-remove-unnecessary-dependencies.patch`. Preserve the archive's original patch names and series; the numbering describes the locally maintained SONiC patches.
+
+Apply this convention to new or unpublished work. Do not rename files inside published registry versions or mass-rename upstream archive patches. When renaming, preserve patch contents and provenance, update every patch reference and any series file, refresh affected source/overlay integrity, and regenerate generated `MODULE.bazel` files through their existing generator. Verify the declared application order and prepared source remain unchanged.
+
 ### Verify existing patches before switching upstream
 
 Before upgrading or replacing a patched dependency with a public module:
