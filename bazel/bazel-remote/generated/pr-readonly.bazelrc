@@ -1,0 +1,2 @@
+build --remote_cache=https://lgh-bazel-87263989.eastus.cloudapp.azure.com
+build --remote_upload_local_results=false

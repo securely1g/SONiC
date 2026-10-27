@@ -1,0 +1,13 @@
+# Generated for bazel-remote v2.6.4 by render-config.py.
+# Deployment must check formatted available space before service start.
+dir: "/var/lib/bazel-remote/cache"
+max_size: 920
+max_size_hard_limit: 968
+storage_mode: zstd
+zstd_implementation: go
+http_address: "127.0.0.1:8080"
+grpc_address: "127.0.0.1:9092"
+enable_endpoint_metrics: true
+access_log_level: all
+htpasswd_file: "/etc/bazel-remote/htpasswd"
+allow_unauthenticated_reads: true

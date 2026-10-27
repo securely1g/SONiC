@@ -1,0 +1,17 @@
+{
+  "verifiedAt": "2026-10-26T15:32:27.493874+00:00",
+  "scope": "loopback empty CAS; known username with incorrect password for PUT",
+  "samples": 3,
+  "getSeconds": [
+    0.002,
+    0.001,
+    0.001
+  ],
+  "rejectedPutSeconds": [
+    1.044,
+    1.046,
+    1.042
+  ],
+  "medianGetSeconds": 0.001,
+  "medianRejectedPutSeconds": 1.044
+}
