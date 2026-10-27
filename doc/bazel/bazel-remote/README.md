@@ -37,11 +37,21 @@ The East US pay-as-you-go base is **$155.33/month** using 730 hours, verified ag
 
 Disk operations, outbound data transfer, taxes, and unrelated subscription resources are excluded. There is no ongoing Blob storage charge for the deleted account.
 
+## Deployment workspace
+
+For uploads or maintenance, set the absolute path to the existing deployment workspace on your host:
+
+```sh
+export BAZEL_REMOTE_DEPLOY_DIR="/absolute/path/to/bazel-remote-deployment"
+```
+
+Replace the placeholder with the workspace containing `scripts/`, `infra/`, `verification/`, and the existing private `secrets/`. This documentation directory contains notes, configuration examples, and selected reports; it does not include those deployment files. Operational paths below refer to the deployment workspace, while documentation links resolve relative to this README.
+
 ## Connect
 
 The service status page is **https://lgh-bazel-87263989.eastus.cloudapp.azure.com/status** and is readable without credentials. The native setting also makes `/metrics` readable without credentials.
 
-For PRs that should read the cache without credentials, use the contents of `generated/pr-readonly.bazelrc`:
+For PRs that should read the cache without credentials, use the contents of [pr-readonly.bazelrc](generated/pr-readonly.bazelrc):
 
 ```text
 build --remote_cache=https://lgh-bazel-87263989.eastus.cloudapp.azure.com
@@ -50,10 +60,10 @@ build --remote_upload_local_results=false
 
 The second option prevents upload attempts from the PR client. The server separately rejects anonymous PUT requests.
 
-For clients that should upload results, pass the existing private Bazel configuration as a startup option:
+For clients that should upload results, run from the source repository you want to build and pass the existing private Bazel configuration as a startup option:
 
 ```sh
-bazel --bazelrc=/Users/lgh/bazel-remote-azure-20261025/secrets/client.bazelrc build //...
+bazel --bazelrc="${BAZEL_REMOTE_DEPLOY_DIR:?Set BAZEL_REMOTE_DEPLOY_DIR}/secrets/client.bazelrc" build //...
 ```
 
 The private files in `secrets/` and the rendered `generated/htpasswd` file are mode 0600. The plaintext password is absent from cloud-init and Azure deployment parameters; the existing bcrypt hash is included for native write authentication. Public ingress is configured for TCP 80 and 443.
@@ -71,20 +81,37 @@ Native htpasswd authentication verifies the existing cost-14 bcrypt hash on ever
 
 Current authentication evidence is in `reports/anonymous-reads-guest-final.json`, `reports/anonymous-reads-public-validation.json`, `reports/anonymous-reads-finalize-result.json`, and `verification/runs/20261026T153353Z-c1aba178/result.json`. The consolidated audit is `reports/anonymous-reads-completion-audit.json`. Storage migration evidence remains in `reports/disk-only-completion-audit.json`.
 
+For a deployment change, rerun the checks from the configured workspace using the existing writer credentials. These checks upload test entries; see the [verification guidance](SKILL.md#verify-relevant-behavior) for their effects.
+
+```sh
+(
+  cd "${BAZEL_REMOTE_DEPLOY_DIR:?Set BAZEL_REMOTE_DEPLOY_DIR}" || exit
+  python3 verification/verify_public_endpoint.py \
+    --anonymous-reads \
+    --output reports/public-validation.json &&
+  python3 verification/verify_remote_cache.py --anonymous-read
+)
+```
+
 ## Deployment files
 
 - `infra/main.bicep` and `infra/resources.bicep` define the VM, disks, and networking. They contain no storage account or Blob role assignment.
 - `infra/bootstrap.py` prepares an empty cache disk for a fresh VM and checks capacity before starting the services.
 - `infra/Caddyfile.template` and the systemd units define HTTPS forwarding and loopback application listeners. Native write authentication is configured in `generated/bazel-remote.yaml` and `generated/htpasswd`.
-- `app/README.md` documents the application configuration and local eviction behavior.
+- [Application notes](app/README.md) document the application configuration and local eviction behavior.
 - `generated/` contains the current ARM template, parameters, cloud-init, rendered service configuration, and credential-free PR Bazel configuration.
 - `verification/verify_public_endpoint.py --anonymous-reads` checks HTTPS, anonymous reads, protected writes, and a unique CAS round trip; `verification/verify_remote_cache.py --anonymous-read` proves a credential-free Bazel cache hit.
 
-Regenerate the current deployment files while preserving the existing credentials:
+Regenerate the current deployment files while preserving the existing credentials. Set `BAZEL_REMOTE_CADDY` to the absolute path of an executable Caddy **2.11.7** binary for your host's OS and architecture:
 
 ```sh
-python3 scripts/render_deployment.py --caddy tools/caddy-2.11.7-macos-arm64
-az bicep build --file infra/main.bicep --outfile generated/main.json
+export BAZEL_REMOTE_CADDY="/absolute/path/to/caddy"
+(
+  cd "${BAZEL_REMOTE_DEPLOY_DIR:?Set BAZEL_REMOTE_DEPLOY_DIR}" || exit
+  python3 scripts/render_deployment.py \
+    --caddy "${BAZEL_REMOTE_CADDY:?Set BAZEL_REMOTE_CADDY}" &&
+  az bicep build --file infra/main.bicep --outfile generated/main.json
+)
 ```
 
 The renderer validates Caddy and checks that the plaintext client password is absent from cloud-init. The current generated cloud-init is below Azure's 64 KiB custom-data limit.
