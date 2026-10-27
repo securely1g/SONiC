@@ -1,0 +1,48 @@
+{
+  "success": true,
+  "completedAt": "2026-10-26T15:36:56.895586+00:00",
+  "endpoint": "https://lgh-bazel-87263989.eastus.cloudapp.azure.com",
+  "allowUnauthenticatedReads": true,
+  "authenticationBackend": "bazel-remote htpasswd",
+  "existingWriterCredentialsUnchanged": true,
+  "publicHttpVerification": {
+    "anonymousGet": 200,
+    "anonymousHead": 200,
+    "anonymousPut": 401,
+    "wrongPasswordPut": 401,
+    "authenticatedPut": 200,
+    "anonymousStatus": 200,
+    "anonymousMetrics": 200,
+    "tlsVerified": true,
+    "uniqueCasBytesMatched": true
+  },
+  "bazelVerification": {
+    "authenticatedUpload": true,
+    "localOutputBaseRemoved": true,
+    "credentialFreeRemoteCacheHit": true,
+    "outputMatched": true
+  },
+  "prConfiguration": "generated/pr-readonly.bazelrc",
+  "prConfigurationContainsCredentials": false,
+  "cacheDiskGiB": 1024,
+  "cacheMaxGiB": 920,
+  "cacheHardLimitGiB": 968,
+  "temporaryRollbackArtifactsRemoved": true,
+  "authenticationTiming": {
+    "scope": "loopback empty CAS; known username with incorrect password for PUT",
+    "samples": 3,
+    "medianGetSeconds": 0.001,
+    "medianRejectedPutSeconds": 1.044,
+    "nativeBcryptVerificationOccursPerKnownUserPut": true
+  },
+  "verificationScope": "public HTTP cache path and guest configuration; gRPC authorization behavior follows the native setting and was not separately exercised",
+  "evidence": {
+    "guest": "reports/anonymous-reads-guest-final.json",
+    "public": "reports/anonymous-reads-public-validation.json",
+    "bazel": "verification/runs/20261026T153353Z-c1aba178/result.json",
+    "render": "reports/anonymous-reads-render-validation.json",
+    "guestCleanup": "reports/anonymous-reads-finalize-result.json",
+    "localCleanup": "reports/anonymous-reads-local-finalization.json",
+    "authenticationTiming": "reports/anonymous-reads-auth-timing-local.json"
+  }
+}
