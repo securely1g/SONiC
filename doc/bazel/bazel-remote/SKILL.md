@@ -5,9 +5,17 @@ description: Use, inspect, or maintain the existing bazel-remote cache in Azure 
 
 # Azure Bazel cache
 
-Work from `/Users/lgh/bazel-remote-azure-20261025`. This skill describes the existing deployment and does not grant permission for a new deployment, resource deletion, credential change, or message to another person.
+This skill describes the existing deployment and does not grant permission for a new deployment, resource deletion, credential change, or message to another person.
 
 Start with the maintained [deployment notes](README.md) when the request needs details beyond client access. Treat the recorded configuration and verification reports as a baseline, not a live status check. Inspect Azure and the guest when current state matters.
+
+For uploads or maintenance, set the absolute path to the existing deployment workspace on your host:
+
+```sh
+export BAZEL_REMOTE_DEPLOY_DIR="/absolute/path/to/bazel-remote-deployment"
+```
+
+Replace the placeholder with the workspace containing `scripts/`, `infra/`, `verification/`, and the existing private `secrets/`. Those files are not included in this documentation directory; do not use this directory as the deployment workspace. Documentation links resolve relative to this skill.
 
 ## Client access
 
@@ -22,10 +30,10 @@ build --remote_upload_local_results=false
 
 This configuration contains no credentials. The upload flag controls client behavior; the service independently rejects anonymous writes.
 
-For authorized writers, use the existing private configuration as a Bazel startup option:
+For authorized writers, run from the source repository you want to build and use the existing private configuration as a Bazel startup option:
 
 ```sh
-bazel --bazelrc=/Users/lgh/bazel-remote-azure-20261025/secrets/client.bazelrc build //...
+bazel --bazelrc="${BAZEL_REMOTE_DEPLOY_DIR:?Set BAZEL_REMOTE_DEPLOY_DIR}/secrets/client.bazelrc" build //...
 ```
 
 Do not copy the password, Basic authorization value, or password hash into source control, logs, reports, or this skill. Preserve the existing writer credentials unless the user requests a change. When adding CI access, distinguish credential-free PR reads from trusted uploads and use the repository's established secret mechanism for the latter.
@@ -53,12 +61,16 @@ The existing cost-14 bcrypt hash is checked on each PUT using a known username. 
 
 For status requests, read the public `/status` endpoint and use the relevant Azure or guest checks if the question needs more than application status. `MaxSize`, `CurrSize`, `ReservedSize`, and `UncompressedSize` are bytes; `MaxSize` is the configured cache eviction limit, not raw disk capacity.
 
-For an authorized change, update the maintained sources and rendered configuration together. Preserve unrelated storage, listeners, credentials, and cache acceptance behavior. Regenerate with:
+For an authorized change, update the maintained sources and rendered configuration together. Preserve unrelated storage, listeners, credentials, and cache acceptance behavior. Set `BAZEL_REMOTE_CADDY` to the absolute path of an executable Caddy **2.11.7** binary for your host's OS and architecture, then regenerate from the deployment workspace:
 
 ```sh
-cd /Users/lgh/bazel-remote-azure-20261025
-python3 scripts/render_deployment.py --caddy tools/caddy-2.11.7-macos-arm64
-az bicep build --file infra/main.bicep --outfile generated/main.json
+export BAZEL_REMOTE_CADDY="/absolute/path/to/caddy"
+(
+  cd "${BAZEL_REMOTE_DEPLOY_DIR:?Set BAZEL_REMOTE_DEPLOY_DIR}" || exit
+  python3 scripts/render_deployment.py \
+    --caddy "${BAZEL_REMOTE_CADDY:?Set BAZEL_REMOTE_CADDY}" &&
+  az bicep build --file infra/main.bicep --outfile generated/main.json
+)
 ```
 
 Choose deployment steps from the requested change and current state. The historical migration scripts and reports document completed operations; do not replay them as a general deployment command. If an external operation times out, inspect that operation or authoritative state before retrying.
@@ -68,15 +80,17 @@ Choose deployment steps from the requested change and current state. The histori
 Use the existing verifiers when the change affects access or cache behavior:
 
 ```sh
-python3 /Users/lgh/bazel-remote-azure-20261025/verification/verify_public_endpoint.py \
-  --anonymous-reads \
-  --output /Users/lgh/bazel-remote-azure-20261025/reports/public-validation.json
-
-python3 /Users/lgh/bazel-remote-azure-20261025/verification/verify_remote_cache.py --anonymous-read
+(
+  cd "${BAZEL_REMOTE_DEPLOY_DIR:?Set BAZEL_REMOTE_DEPLOY_DIR}" || exit
+  python3 verification/verify_public_endpoint.py \
+    --anonymous-reads \
+    --output reports/public-validation.json &&
+  python3 verification/verify_remote_cache.py --anonymous-read
+)
 ```
 
 The public verifier writes one unique 1 MiB cache entry using the existing credentials, then checks anonymous GET/HEAD and rejected anonymous or incorrect-password PUTs. The Bazel verifier uploads a unique action with the writer configuration, removes the full client output base, and requires a credential-free remote cache hit with matching output. Both retain sanitized evidence. Run them for a deployment change or requested live verification, rather than for a documentation-only question.
 
-On this Mac, the Bazel verifier needs normal command escalation for Bazel's process metadata access. Use the supported escalation path; do not change global Bazel configuration or environment directories to work around it. The guest validation script contains hashes for the expected deployment, so update those expectations when the corresponding files legitimately change.
+If the execution environment restricts Bazel's process metadata access, use its supported command escalation path; do not change global Bazel configuration or environment directories to work around it. The guest validation script contains hashes for the expected deployment, so update those expectations when the corresponding files legitimately change.
 
 The last consolidated access verification is [anonymous-reads-completion-audit.json](reports/anonymous-reads-completion-audit.json). Report which checks actually ran and distinguish recorded behavior from current observations.
