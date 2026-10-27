@@ -7,13 +7,13 @@ description: Use, inspect, or maintain the existing bazel-remote cache in Azure 
 
 Work from `/Users/lgh/bazel-remote-azure-20261025`. This skill describes the existing deployment and does not grant permission for a new deployment, resource deletion, credential change, or message to another person.
 
-Start with the maintained [deployment notes](/Users/lgh/bazel-remote-azure-20261025/README.md) when the request needs details beyond client access. Treat the recorded configuration and verification reports as a baseline, not a live status check. Inspect Azure and the guest when current state matters.
+Start with the maintained [deployment notes](README.md) when the request needs details beyond client access. Treat the recorded configuration and verification reports as a baseline, not a live status check. Inspect Azure and the guest when current state matters.
 
 ## Client access
 
 The endpoint is `https://lgh-bazel-87263989.eastus.cloudapp.azure.com`.
 
-For PRs or other clients that should only read, use [pr-readonly.bazelrc](/Users/lgh/bazel-remote-azure-20261025/generated/pr-readonly.bazelrc):
+For PRs or other clients that should only read, use [pr-readonly.bazelrc](generated/pr-readonly.bazelrc):
 
 ```text
 build --remote_cache=https://lgh-bazel-87263989.eastus.cloudapp.azure.com
@@ -41,13 +41,13 @@ The last verified deployment uses:
 - Caddy for public HTTPS, forwarding to bazel-remote HTTP at `127.0.0.1:8080`. gRPC listens only at `127.0.0.1:9092`.
 - Native `htpasswd_file` authentication with `allow_unauthenticated_reads: true`.
 
-The current rendered application settings are in [bazel-remote.yaml](/Users/lgh/bazel-remote-azure-20261025/generated/bazel-remote.yaml). For resource changes, inspect `infra/main.bicep`, `infra/resources.bicep`, and the live resource before editing. Use the explicit subscription ID in Azure CLI commands rather than relying on the active CLI subscription.
+The current rendered application settings are in [bazel-remote.yaml](generated/bazel-remote.yaml). For resource changes, inspect `infra/main.bicep`, `infra/resources.bicep`, and the live resource before editing. Use the explicit subscription ID in Azure CLI commands rather than relying on the active CLI subscription.
 
 ## Authentication behavior
 
 On the public HTTP cache path, anonymous GET and HEAD requests are allowed; PUT requires the existing writer credentials. Native anonymous-read mode also leaves `/status` and `/metrics` accessible without login. Reads with an incorrect Authorization header still bypass authentication. The loopback gRPC listener uses the native read-RPC allowlist and requires credentials for writes; HTTP method filtering does not describe gRPC authorization.
 
-The existing cost-14 bcrypt hash is checked on each PUT using a known username. A prior loopback test measured 1.044 seconds median for a rejected PUT using the known username and an incorrect password; valid credentials use the same bcrypt comparison. Treat this as a recorded authentication cost, not a current throughput benchmark. Do not silently change the hash, authentication layer, or access semantics to optimize it. See [application details](/Users/lgh/bazel-remote-azure-20261025/app/README.md) and the [timing report](/Users/lgh/bazel-remote-azure-20261025/reports/anonymous-reads-auth-timing-local.json).
+The existing cost-14 bcrypt hash is checked on each PUT using a known username. A prior loopback test measured 1.044 seconds median for a rejected PUT using the known username and an incorrect password; valid credentials use the same bcrypt comparison. Treat this as a recorded authentication cost, not a current throughput benchmark. Do not silently change the hash, authentication layer, or access semantics to optimize it. See [application details](app/README.md) and the [timing report](reports/anonymous-reads-auth-timing-local.json).
 
 ## Inspect or change the deployment
 
@@ -79,4 +79,4 @@ The public verifier writes one unique 1 MiB cache entry using the existing crede
 
 On this Mac, the Bazel verifier needs normal command escalation for Bazel's process metadata access. Use the supported escalation path; do not change global Bazel configuration or environment directories to work around it. The guest validation script contains hashes for the expected deployment, so update those expectations when the corresponding files legitimately change.
 
-The last consolidated access verification is [anonymous-reads-completion-audit.json](/Users/lgh/bazel-remote-azure-20261025/reports/anonymous-reads-completion-audit.json). Report which checks actually ran and distinguish recorded behavior from current observations.
+The last consolidated access verification is [anonymous-reads-completion-audit.json](reports/anonymous-reads-completion-audit.json). Report which checks actually ran and distinguish recorded behavior from current observations.
