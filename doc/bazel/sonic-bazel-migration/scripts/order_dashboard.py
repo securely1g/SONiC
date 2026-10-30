@@ -40,6 +40,36 @@ ITEM_QUERY = """query($cursor:String) {
     }
   }}
 }"""
+IDENTITY_QUERY = """query($cursor:String) {
+  viewer {login}
+  user(login:"securely1g") {projectV2(number:1) {
+    id
+    field(name:"All upstream PRs") {
+      __typename ... on ProjectV2Field {id name dataType}
+    }
+    items(first:100,after:$cursor,orderBy:{field:POSITION,direction:ASC}) {
+      totalCount pageInfo {hasNextPage endCursor}
+      nodes {
+        id isArchived
+        content {__typename ... on PullRequest {baseRepository {owner {login}}}}
+      }
+    }
+  }}
+}"""
+DETAIL_QUERY = """query($ids:[ID!]!) {
+  viewer {login}
+  nodes(ids:$ids) {
+    ... on ProjectV2Item {
+      id isArchived project {id}
+      content {__typename ... on PullRequest {url state baseRepository {owner {login}}}}
+      fieldValueByName(name:"All upstream PRs") {
+        __typename ... on ProjectV2ItemFieldTextValue {
+          text field {... on ProjectV2Field {id name dataType}}
+        }
+      }
+    }
+  }
+}"""
 VIEW_QUERY = """query($cursor:String) {
   user(login:"securely1g") {projectV2(number:1) {
     id views(first:100,after:$cursor) {
@@ -169,6 +199,7 @@ class Item:
     upstream: str = ""
     state: str | None = None
     archived: bool = False
+    base_owner: str | None = None
 
 
 @dataclass(frozen=True)
@@ -246,9 +277,58 @@ def read_connection(client: GitHub, query: str, name: str) -> list[dict[str, Any
         cursors.add(cursor)
 
 
-def read_snapshot(client: GitHub) -> Snapshot:
+def read_snapshot(client: GitHub, base_owner: str | None = None) -> Snapshot:
+    if base_owner is None:
+        nodes = read_connection(client, ITEM_QUERY, "items")
+    else:
+        identities = read_connection(client, IDENTITY_QUERY, "items")
+        selected = []
+        owners = {}
+        for node in identities:
+            content = node.get("content") or {}
+            require(isinstance(content, dict), "Unexpected Project item identity")
+            if content.get("__typename") != "PullRequest":
+                continue
+            repository = content.get("baseRepository")
+            require(isinstance(repository, dict), "Missing PR base repository identity")
+            owner_node = repository.get("owner")
+            require(isinstance(owner_node, dict), "Missing PR base owner identity")
+            owner = owner_node.get("login")
+            require(isinstance(owner, str) and bool(owner), "Missing PR base owner identity")
+            owners[node["id"]] = owner
+            if owner == base_owner:
+                selected.append(node["id"])
+        details = {}
+        for start in range(0, len(selected), 100):
+            requested = selected[start:start + 100]
+            data = client.query(DETAIL_QUERY, {"ids": requested})
+            require(data.get("viewer") == {"login": "securely1g"}, "Use the securely1g GitHub account")
+            batch = data.get("nodes")
+            require(isinstance(batch, list) and len(batch) == len(requested), "Incomplete scoped Project details")
+            for node in batch:
+                require(isinstance(node, dict) and node.get("id") in requested and node["id"] not in details,
+                        "Unexpected scoped Project item")
+                require(node.get("project") == {"id": PROJECT_ID}, "Scoped item changed Project")
+                content = node.get("content") or {}
+                require(isinstance(content, dict), "Unexpected scoped PR content")
+                repository = content.get("baseRepository")
+                require(content.get("__typename") == "PullRequest" and isinstance(repository, dict)
+                        and repository.get("owner") == {"login": base_owner},
+                        "Scoped PR base owner changed before detail readback")
+                url = content.get("url")
+                require(isinstance(url, str), "Scoped PR URL is missing")
+                match = PR_URL.fullmatch(url)
+                require(match is not None and match.group(1).lower() == base_owner.lower(),
+                        "Scoped PR URL does not match its base owner")
+                details[node["id"]] = node
+        require(set(details) == set(selected), "Missing scoped Project item details")
+        require(read_connection(client, IDENTITY_QUERY, "items") == identities,
+                "Project ownership or membership changed during detail loading")
+        nodes = [details.get(node["id"], {"id": node["id"], "isArchived": node.get("isArchived", False),
+                                               "content": {}, "baseOwner": owners.get(node["id"])})
+                 for node in identities]
     items = []
-    for node in read_connection(client, ITEM_QUERY, "items"):
+    for node in nodes:
         content = node.get("content") or {}
         require(isinstance(content, dict), "Unexpected Project item content")
         url = normalized_pr_url(content["url"]) if content.get("__typename") == "PullRequest" else None
@@ -257,8 +337,9 @@ def read_snapshot(client: GitHub) -> Snapshot:
             require(isinstance(value, dict) and value.get("__typename") == "ProjectV2ItemFieldTextValue"
                     and value.get("field") == {"id": CANONICAL_FIELD_ID, "name": FIELD_NAME, "dataType": "TEXT"}
                     and isinstance(value.get("text"), str), "Unexpected canonical item field")
+        owner = ((content.get("baseRepository") or {}).get("owner") or {}).get("login", node.get("baseOwner"))
         items.append(Item(node["id"], url, value["text"] if value else "",
-                          content.get("state"), node.get("isArchived", False)))
+                          content.get("state"), node.get("isArchived", False), owner))
     views = read_connection(client, VIEW_QUERY, "views")
     for view in views:
         for name in ("sortByFields", "groupByFields", "verticalGroupByFields"):
@@ -270,7 +351,8 @@ def read_snapshot(client: GitHub) -> Snapshot:
     return Snapshot(tuple(items), tuple(views))
 
 
-def desired_order(snapshot: Snapshot) -> tuple[list[str], list[dict[str, str]]]:
+def desired_order(snapshot: Snapshot, base_owner: str | None = None,
+                  excluded_prerequisites: list[dict[str, str]] | None = None) -> tuple[list[str], list[dict[str, str]]]:
     """Stable Kahn sort over every PR row; keep non-PR rows in their original slots."""
     prs = {item.url: item for item in snapshot.items if item.url}
     require(len(prs) == sum(item.url is not None for item in snapshot.items), "Duplicate Project PR rows")
@@ -286,6 +368,10 @@ def desired_order(snapshot: Snapshot) -> tuple[list[str], list[dict[str, str]]]:
     aliases = repository_aliases(repositories)
     for item in prs.values():
         for url in parse_links(item.upstream, aliases):
+            if base_owner is not None and PR_URL.fullmatch(url).group(1).lower() != base_owner.lower():
+                if excluded_prerequisites is not None:
+                    excluded_prerequisites.append({"consumer": item.url, "prerequisite": url})
+                continue
             upstream = prs.get(url)
             if upstream is None:
                 missing.append({"consumer": item.url, "prerequisite": url})
@@ -340,12 +426,22 @@ def view_warnings(snapshot: Snapshot) -> list[str]:
     return warnings
 
 
-def reconcile(client: GitHub, apply: bool = False) -> dict[str, Any]:
-    snapshot = read_snapshot(client)
-    target, missing = desired_order(snapshot)
+def reconcile(client: GitHub, apply: bool = False, base_owner: str | None = None) -> dict[str, Any]:
+    snapshot = read_snapshot(client, base_owner)
+    excluded_prerequisites: list[dict[str, str]] = []
+    target, missing = desired_order(snapshot, base_owner, excluded_prerequisites)
+    if base_owner is not None:
+        require(all(target.index(item.id) == position for position, item in enumerate(snapshot.items) if item.url is None),
+                "Scoped target changed excluded or non-PR positions")
     moves = plan_moves(snapshot, target)
     report = {"project": "https://github.com/users/securely1g/projects/1",
-              "canonical_field_id": CANONICAL_FIELD_ID, "apply": apply,
+              "canonical_field_id": CANONICAL_FIELD_ID, "apply": apply, "base_owner": base_owner,
+              "excluded_items": [{"item": item.id, "base_owner": item.base_owner}
+                                 for item in snapshot.items if item.url is None and item.base_owner is not None],
+              "excluded_prerequisites": excluded_prerequisites,
+              "excluded_prerequisite_count": len(excluded_prerequisites),
+              "scope_limitations": (["Excluded-owner canonical prerequisites are retained but omitted from ordering; their PR details were not read."]
+                                    if excluded_prerequisites else []),
               "moves": moves, "missing_prerequisites": missing,
               "view_warnings": view_warnings(snapshot), "desired_order": target,
               "verified": False}
@@ -357,13 +453,13 @@ def reconcile(client: GitHub, apply: bool = False) -> dict[str, Any]:
     completed = 0
     try:
         for move in moves:
-            require(read_snapshot(client) == expected, "Project graph, views, or order changed concurrently")
+            require(read_snapshot(client, base_owner) == expected, "Project graph, views, or order changed concurrently")
             client.move(move["item"], move["after"])
             completed += 1
             by_id = {item.id: item for item in expected.items}
             order = move_after([item.id for item in expected.items], move["item"], move["after"])
             expected = replace(expected, items=tuple(by_id[item] for item in order))
-        require(read_snapshot(client) == expected, "Project final readback differs from the expected graph, views, or order")
+        require(read_snapshot(client, base_owner) == expected, "Project final readback differs from the expected graph, views, or order")
     except OrderError as exc:
         raise OrderError(f"{exc}; {completed} move(s) completed. Rerun from the current Project state.") from exc
     report["verified"] = True
@@ -373,10 +469,12 @@ def reconcile(client: GitHub, apply: bool = False) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--github-cli", required=True, help="GitHub CLI/account selector authenticated as securely1g")
+    parser.add_argument("--base-owner", choices=("securely1g",), default="securely1g",
+                        help="read PR details and order only rows whose base repository has this owner")
     parser.add_argument("--apply", action="store_true", help="move PR rows after validating the complete graph and current order")
     args = parser.parse_args(argv)
     try:
-        print(json.dumps(reconcile(GitHub(args.github_cli), args.apply), indent=2))
+        print(json.dumps(reconcile(GitHub(args.github_cli), args.apply, args.base_owner), indent=2))
         return 0
     except (OrderError, KeyError, TypeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
