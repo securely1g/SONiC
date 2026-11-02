@@ -154,6 +154,11 @@ snapshots as Draft validation inputs even when their consumer checks pass.
 
 ## Require landed registry endpoints before review
 
+Apply this gate to dependencies within the
+[PR's readiness scope](pr-merge-readiness.md#scope-readiness-to-the-proposed-change).
+An unchanged, unrelated registry selection inherited from maintained
+`master`/`main` does not hold an unrelated PR in Draft.
+
 Before a consumer becomes or remains Ready for review, both local builds and CI
 must use the registry's canonical maintained `main`/`master` endpoint. Remove
 all temporary validation overrides, even after their entries merge. A verified

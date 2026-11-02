@@ -73,8 +73,11 @@ or return the consumer to Draft. Audit quiet Ready consumers too, without waitin
 for another merge event.
 
 For every consumer PR, also apply the
-[PR draft-state rule](pr-merge-readiness.md). Keep Draft while any selected
-dependency commit is unlanded or unverifiable, including a stacked prerequisite,
+[PR draft-state rule](pr-merge-readiness.md), first checking its
+[readiness scope](pr-merge-readiness.md#scope-readiness-to-the-proposed-change).
+Unchanged, unrelated dependencies inherited from maintained `master`/`main`
+must not hold the PR in Draft. Keep Draft while a relevant selected dependency
+commit is unlanded or unverifiable, including a stacked prerequisite,
 sources resolved through a registry, external CI inputs and consumed artifacts.
 A prerequisite PR's merged state or an identical tree does not make its retained PR-head snapshot
 ready. Registry PRs additionally require a maintained `master`/`main` base

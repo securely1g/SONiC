@@ -1,14 +1,40 @@
 # PR draft and review readiness
 
 Apply this rule to every open SONiC Bazel migration PR within the authorized
-scope. A PR that consumes an unlanded dependency commit stays in Draft,
-regardless of which repository owns the PR. Registry PRs also have the base
+scope. An unlanded dependency relevant to the proposed change keeps a PR in
+Draft, regardless of which repository owns it. Registry PRs also have the base
 requirement below. Do not rewrite published historical registry versions.
+
+## Scope readiness to the proposed change
+
+Unchanged, unrelated dependencies inherited from maintained `master` or `main`
+must not keep a PR in Draft. Compare the current PR diff and effective inputs
+with that branch. Gate on dependencies the PR introduces, changes, or needs for
+its proposed behavior or validation, including relevant transitive inputs.
+An unchanged dependency can still be relevant; absence from the diff alone is
+not an exemption. A repository-wide CI trigger alone does not establish that
+the change needs every dependency used by that job.
+
+Record the checked head/base, unchanged selection and reason for excluding an
+unrelated dependency. Keep baseline issues visible separately, without making
+their repair a prerequisite for the unrelated PR. Reassess when the scope or
+relevant inputs change. Unmerged stacked prerequisites are not part of the
+maintained baseline and remain subject to the dependency checks below.
+
+For example, [buildimage #82](https://github.com/securely1g/sonic-buildimage/pull/82)
+changes dashboard job classification and upload timing in `collect.py` and its
+README. Its metadata tests do not execute the runner manager. The unchanged
+installer workflow inherited from `master` pins manager commit `549469b` from
+[agi-projects #60](https://github.com/securely1g/agi-projects/pull/60); that pin
+must not hold this dashboard-only change in Draft. A PR that changes or needs
+that manager must still verify its provenance. Required CI, accurate result
+reporting and merge protections remain in effect for both PRs.
 
 ## Identify the dependencies actually consumed
 
-Inspect the current PR head and the inputs selected by its build, tests, CI,
-and published outputs. Check direct Git or archive pins, module overrides,
+Within the scope above, inspect the current PR head and the inputs selected by
+its build, tests, CI and published outputs. Check direct Git or archive pins,
+module overrides,
 submodules, external CI checkouts or workflow/action references, and consumed
 artifacts. Resolve registry URLs and module versions through their selected
 `source.json`, patches and overlays; a maintained registry branch can still
@@ -36,8 +62,8 @@ snapshot does not qualify as a release merely because it has a version string.
 
 ## Verify the selected source revisions
 
-For each dependency commit, record its repository, maintained `master` or `main`
-branch, observed branch tip, selected SHA and corresponding source PR's landed
+For each in-scope dependency commit, record its repository, maintained `master`
+or `main` branch, observed branch tip, selected SHA and corresponding source PR's landed
 SHA when there is one. For SONiC registry registrations, include every proposed
 source version in the current diff, even if no consumer selects it yet.
 
@@ -97,21 +123,23 @@ from success and retain the existing informational CodeQL policy.
 
 On authorized PR creation, refresh, base changes, upstream-merge reassessment
 and every babysitter cycle, inspect the current inputs and GitHub draft state.
-Within the task's scope, apply the following rule:
+Apply the scope assessment above before this table:
 
 | Current evidence | PR state |
 | --- | --- |
-| Any consumed dependency commit is unlanded or its required provenance cannot be verified | Draft |
-| A consumer still uses a temporary registry endpoint or ineligible registry commit, or required entries are unavailable | Draft |
+| An unchanged, unrelated dependency is inherited from maintained `master`/`main` | No Draft hold from that dependency; assess the remaining applicable requirements |
+| An in-scope dependency commit is unlanded or its required provenance cannot be verified | Draft |
+| An in-scope registry selection uses a temporary endpoint or ineligible registry commit, or required entries are unavailable | Draft |
 | A registry PR proposes an unlanded or unverifiable SONiC source version, is stacked, or does not target maintained `master`/`main` | Draft |
 | Temporary CI branch-filter cleanup is still needed after retargeting a stack | Draft |
 | Dependency provenance, registry endpoint and any registry base/source requirements pass, and applicable CI branch-filter cleanup is complete | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
 
 An upstream merge triggers reassessment; it does not make a consumer ready
-while it still selects the former PR head. A head, base or selected-dependency
-change invalidates the old assessment. Verify current inputs before retaining
-Ready for review, and return the PR to Draft if provenance cannot be
-established. Respect explicit user draft holds until they are lifted.
+while an in-scope dependency still selects the former PR head. A head, base or
+selected-dependency change invalidates the old assessment. Verify current inputs
+before retaining Ready for review, and return the PR to Draft if required
+in-scope provenance cannot be established. Respect explicit user draft holds
+until they are lifted.
 
 Use GitHub's Draft/Ready for review state instead of readiness labels. When
 applying this rule, remove `not-ready-to-merge` and `ready-to-merge` if present;
