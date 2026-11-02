@@ -2,7 +2,8 @@
 
 The SONiC Bazel Migration Project's **Area** column identifies which Docker
 migrations need a PR. Use a native **multi-select** field with one option per
-canonical Docker name. This replaces the old work-type categories such as
+canonical Docker name, plus any explicitly tracked image areas. This replaces
+the old work-type categories such as
 `Build infrastructure`, `Dependency registry` and `Documentation`.
 
 ## Select every verified Docker consumer
@@ -21,13 +22,53 @@ canonical Docker name. This replaces the old work-type categories such as
 - Establish each assignment from the selected build graph, source ownership,
   PR changes and consumer links. Do not infer all Dockers from the repository
   name or from a generic shared-library relationship. Record supporting
-  consumers/targets in triage. If no Docker consumer is verified, leave Area
-  unset and record the classification gap; do not invent an association for
-  a project-wide administration or documentation PR.
+  consumers/targets in triage. Assign each Docker or image area from its
+  verified impact. Leave Area unset when no affected area is established;
+  retain uncertain classifications for investigation rather than inventing
+  an association.
 
 Area is the set of affected Docker consumers, including transitive consumers.
 **All upstream PRs** still records only direct prerequisite PRs. Do not reverse
 or expand those dependency cells to implement Area classification.
+
+## Track base image impact alongside Docker impact
+
+For `securely1g` Project 1, **`base image`** identifies changes to SONiC's host
+OS, kernel, root filesystem, installer and image assembly. It is independent
+of the 31 tracked Dockers, including the separately named shared Docker bases.
+A PR may select `base image` together with every Docker it affects.
+
+- Establish base-image impact from the changed source, build rules and actual
+  image consumers. This includes verified prerequisites of host/rootfs and
+  installer producers. Name the relevant target, package or image-build step
+  in the evidence and bind it to the reviewed PR revision.
+- Preserve all verified Docker tags when adding `base image`, and preserve
+  `base image` when a PR also gains Docker consumers. A shared dependency can
+  serve both kinds of output.
+- Do not infer base-image impact from an empty Docker selection, an unrelated
+  documentation or dashboard change, or a missing classification. Container
+  inclusion in the final installer alone does not establish a change to its
+  host/rootfs or image-assembly producer.
+- In babysitter evidence, keep the `base image` definition in
+  `additional_areas`, separate from the actual `dockers` catalog. Record
+  verified per-PR `areas` alongside `dockers`. No fake Docker path is needed.
+- Propagate additional areas only through explicitly reviewed dependency-edge
+  `areas` scopes, with both endpoint heads verified. A broad image-integration
+  PR must not assign `base image` to every prerequisite automatically.
+- Preserve valid manual and historical selections. Use `remove_areas` only
+  when current evidence disproves an additional-area association, just as
+  explicit Docker removals require evidence. An incomplete read or changed
+  head alone does not authorize clearing saved selections.
+- Count all native field choices toward GitHub's option limit, while retaining
+  the actual Docker count separately. The current Project has 31 Docker
+  choices plus the independent `base image` choice.
+
+For example, [buildimage #64](https://github.com/securely1g/sonic-buildimage/pull/64)
+changes `tools/bazel/ci/build_vs.sh` to build `target/sonic-vs.bin` and integrates
+the container variants. Its reviewed image-build impact can receive
+`base image` while retaining its affected Docker tags. Dashboard-only
+[buildimage #87](https://github.com/securely1g/sonic-buildimage/pull/87) does not
+receive `base image` merely because its Docker list is empty.
 
 ## Keep the full dropdown catalog available
 
