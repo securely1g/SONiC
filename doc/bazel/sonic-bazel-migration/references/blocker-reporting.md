@@ -37,8 +37,9 @@ visible in the main view's Attention column.
 
 Preserve existing fields, options, views, and unrelated layout settings. If an
 existing Attention field has an incompatible type or ambiguous meaning, report
-that setup conflict instead of replacing it. This setup exception does not
-change the normal rule against creating Area options during PR enrollment.
+that setup conflict instead of replacing it. Maintain Area separately under
+[Docker Area classification](docker-area-classification.md): Docker options
+identify verified consumers, while Attention records unresolved blockers.
 Read back the field, option, and view IDs and configuration before claiming
 setup complete.
 
