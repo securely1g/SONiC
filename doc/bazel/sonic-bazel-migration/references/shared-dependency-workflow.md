@@ -242,6 +242,66 @@ affected test coverage. Older registry CI may still reject all published-entry
 changes until this policy's implementation lands; report that prerequisite rather
 than bypassing the check or claiming it passed.
 
+## Provide a complete version comparison patch
+
+For every registry version update, attach or link a downloadable patch in the PR
+description comparing the previous published version with the current candidate.
+This is required for upstream upgrades and downstream patch revisions alike.
+A summary, selected hunks, local-only file link, or PR diff that merely adds a
+copied version directory does not provide this version-to-version comparison.
+
+1. Identify the previous published version from the current maintained registry
+   branch, and record its version and registry commit alongside the candidate
+   version and PR head commit. An unpublished stacked base is not a published
+   baseline: include the cumulative changes inherited by the candidate. If there
+   is no published predecessor, say so and provide a complete initial-entry
+   addition patch instead of inventing a baseline.
+2. Compare the complete version entries using matching relative paths. Include
+   `MODULE.bazel`, `source.json`, patches, overlays, documentation, tests and
+   `presubmit.json`, plus related module metadata and supporting fixtures,
+   integration modules or CI changes outside the version directory. Include
+   additions, deletions, renames, binary changes and Git file modes, including
+   executable bits and symlinks. Do not drop inherited changes or unchanged files
+   from the resulting tree. Use a binary-capable Git patch when needed.
+3. Put exact application instructions and the pinned comparison revisions in
+   the patch header. One supported method copies the published entry to the new
+   version path, then applies the delta there and updates metadata; it must leave
+   the published entry untouched. Clearly state that the destination must not
+   already exist. Keep the comparison artifact outside the compared tree to
+   avoid including the patch in its own diff.
+4. Run `git apply --check`, then apply the patch in a fresh, isolated baseline
+   checkout using those instructions. Compare the entire resulting candidate
+   entry and affected supporting files with the pinned PR: file inventory,
+   contents, symlink targets and Git modes must match, including unchanged files.
+   Confirm that the published entry is unchanged and verify the recipe's patch
+   and overlay integrity values. Record the patch SHA-256 and validation result.
+   These checks establish patch completeness; retain the required build and test
+   validation separately.
+5. Upload the patch to a durable location accessible to reviewers, such as a
+   revision-pinned GitHub Gist or repository artifact. Add a direct download link
+   to the PR description, with the compared versions and commits, checksum and
+   verification result. Download it again and verify its checksum. After candidate
+   edits or rebases, recheck the comparison, regenerate its revision header and
+   patch as needed, and update the link. Also recheck when the relevant published
+   baseline changes. Keep updating the same unpublished candidate under the
+   version policy; refreshing a patch does not require another version bump.
+
+When an upstream source archive changes, the registry patch must include its
+old/new recipe URL, revision and integrity. Link the upstream source comparison
+as well and label the distinction: a complete registry-entry patch does not
+contain every source change inside an external archive.
+
+For a real example, [registry #170](https://github.com/securely1g/sonic-bazel-registry/pull/170)
+compares `iproute2/6.15.0.sonic.3` at registry commit
+`3b4b7cb6c312908ff90b82519df4c1e8f83f0833` with `6.15.0.sonic.4` at PR commit
+`16ae4c266168d496e49be121c351e598eb797c04`. Its
+[downloadable patch](https://gist.githubusercontent.com/securely1g/133e1bf243761db8729ed6923382336e/raw/05eacd4829fd3faa822235c5848b60e207361a46/iproute2-6.15.0.sonic.3-to-sonic.4.patch)
+contains all six changed version-entry files plus module metadata. Applying it
+after copying `.sonic.3` to `.sonic.4` reproduces all 14 candidate files and their
+Git modes, while leaving `.sonic.3` unchanged. This includes the build and debug
+regression changes, version declarations, documentation and overlay checksums.
+The upstream iproute2 archive is unchanged in this example.
+
 <a id="keep-one-current-version-in-an-unmerged-registry-pr"></a>
 
 ## Keep one unreleased candidate per module
