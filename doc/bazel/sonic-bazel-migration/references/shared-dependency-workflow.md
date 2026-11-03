@@ -283,12 +283,16 @@ copied version directory does not provide this version-to-version comparison.
    These checks establish patch completeness; retain the required build and test
    validation separately.
 5. Upload the patch to a durable location accessible to reviewers, such as a
-   revision-pinned GitHub Gist or repository artifact. Add a direct download link
-   to the PR description, with the compared versions and commits, checksum and
-   verification result. Download it again and verify its checksum. After candidate
-   edits or rebases, recheck the comparison, regenerate its revision header and
-   patch as needed, and update the link. Also recheck when the relevant published
-   baseline changes. Keep updating the same unpublished candidate under the
+   revision-pinned GitHub Gist or repository artifact. Always include both
+   **View colored patch** and **Download raw patch** links in the PR description,
+   with the compared versions and commits, checksum and verification result.
+   Use the HTML diff viewer for the first link and the raw patch for the second;
+   a raw download alone displays plain text. Pin both links to the same artifact
+   revision and verify they open the intended patch. Download the raw file again
+   and verify its checksum. After candidate edits or rebases, recheck the
+   comparison, regenerate its revision header and patch as needed, and update
+   both links together. Also recheck when the relevant published baseline
+   changes. Keep updating the same unpublished candidate under the
    version policy; refreshing a patch does not require another version bump.
 
 When an upstream source archive changes, the registry patch must include its
@@ -299,9 +303,11 @@ contain every source change inside an external archive.
 For a real example, [registry #170](https://github.com/securely1g/sonic-bazel-registry/pull/170)
 compares `iproute2/6.15.0.sonic.3` at registry commit
 `3b4b7cb6c312908ff90b82519df4c1e8f83f0833` with `6.15.0.sonic.4` at PR commit
-`16ae4c266168d496e49be121c351e598eb797c04`. Its
-[downloadable patch](https://gist.githubusercontent.com/securely1g/133e1bf243761db8729ed6923382336e/raw/05eacd4829fd3faa822235c5848b60e207361a46/iproute2-6.15.0.sonic.3-to-sonic.4.patch)
-contains all six changed version-entry files plus module metadata. Applying it
+`16ae4c266168d496e49be121c351e598eb797c04`.
+[View colored patch](https://gist.github.com/securely1g/133e1bf243761db8729ed6923382336e/9039e365fa025aafe47dbffbf5b9aceb1dbf5930)
+or [Download raw patch](https://gist.githubusercontent.com/securely1g/133e1bf243761db8729ed6923382336e/raw/9039e365fa025aafe47dbffbf5b9aceb1dbf5930/iproute2-6.15.0.sonic.3-to-sonic.4.patch).
+Both links identify the same patch, containing all six changed version-entry
+files plus module metadata. Applying it
 after copying `.sonic.3` to `.sonic.4` reproduces all 14 candidate files and their
 Git modes, while leaving `.sonic.3` unchanged. This includes the build and debug
 regression changes, version declarations, documentation and overlay checksums.
