@@ -202,6 +202,23 @@ archives atomically at the supported boundary and preserve old outputs on
 failed preparation, queries or copies. Follow the
 [common cache and evidence requirements](migration-workflow.md#common-integration-and-validation).
 
+## Reuse bazel-oci for image CI
+
+Add new `sonic-buildimage` OCI image validation to the existing
+`.github/workflows/bazel-oci.yml`. Extend compatible jobs or matrix legs to reuse
+checkout, execution tools, source preparation, Bazel setup, caches and artifact
+publication. Add a dependent job in that same workflow when installed-image
+checks require a different execution environment; do not create another
+image-specific workflow file.
+
+Retain the image's explicit build targets, supported architecture/feature gates,
+runtime checks, matching debug symbols, cache reuse and source invalidation
+evidence, and artifact revision/hash checks. Reuse established cache namespaces
+and artifact handoff conventions where compatible; keep image outputs distinct so jobs
+cannot overwrite or consume another image's artifacts. Check timeout and
+resource needs when combining jobs. This consuming-image CI does not replace
+the owning components' source-repository CI.
+
 ## Completion checks
 
 Require the following for each claimed configuration, recording pending items

@@ -298,6 +298,10 @@ The debug image should extend the exact runtime image whose symbols were collect
 - CodeQL and similar compiler-tracing analyzers must observe compilation after initialization. Use a fresh build configuration that prevents action-cache reuse from bypassing extraction, then compare analyzed source coverage with the previous pipeline.
 - Verify generated-code reporting as well as compilation. A generated wrapper can compile successfully while its findings remain outside the analyzer's reported source roots.
 
+### Reuse Bazel OCI for new images
+
+For every new OCI image in `sonic-buildimage`, extend `.github/workflows/bazel-oci.yml`; do not introduce a separate image-specific workflow. Reuse its existing jobs and shared setup where compatible, while retaining checks of the build, runtime behavior, matching debug symbols and cache behavior. Follow [OCI workflow reuse](references/docker-image-template.md#reuse-bazel-oci-for-image-ci) for integration details. Component source repositories still need their own source CI. This rule governs new image CI; it does not authorize consolidating unrelated existing workflows.
+
 ### Keep default pull-request activity types
 
 Keep GitHub's default `pull_request` activity types (`opened`, `synchronize`, and `reopened`) unless there is a concrete, verified reason to change them. Leave `types` unset when the defaults cover the workflow. Do not add `ready_for_review` merely because a PR moves from Draft to Ready or is retargeted. For a justified change, explain the affected repository workflow, why the defaults are insufficient, and the expected before-and-after behavior in the PR description; verify the intended jobs run. Preserve justified existing event selections and unrelated branch/path filters. This rule does not replace the existing cleanup of temporary branch filters when a stacked PR becomes ready.
