@@ -5,6 +5,10 @@
 **Status snapshot:** 2026-10-29.
 **Target:** `sonic-vs.bin`, AMD64, Debian Trixie, VS, Python 3, default features, runtime image.
 
+For the current 23-Docker execution scope, package dependencies and progress,
+see the [AMD64 Docker migration plan](amd64_docker_migration_plan.md).
+The counts below preserve this earlier inventory snapshot.
+
 A component is one source build: its main Make output and the derived or extra outputs identified by `_MAIN_DEB` are tracked in a single row. The component is named by its main output variable. The **Outputs** column lists all audited output identifiers belonging to it.
 
 The tracker contains **127 components**, covering **167 outputs**, across **12 dependency layers**.
