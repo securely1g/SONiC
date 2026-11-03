@@ -318,6 +318,18 @@ Verify that the requirements actually gate the migration PR. While a required ch
 
 Repository-level auto-merge enables a capability; each PR still needs its own auto-merge request. Activate that request or merge a PR only within the user's merge authorization. Configuring CI requirements must not silently add review requirements, administrator enforcement, bypass changes, or a merge-method policy.
 
+## Track future-work issues
+
+After creating an authorized future-work issue for SONiC Bazel migration in a `securely1g` repository, automatically add it to [SONiC Bazel Migration](https://github.com/users/securely1g/projects/1) with initial **Status = Todo**. Complete enrollment in the same task before reporting the issue as tracked; do not wait for a separate request or a babysitter cycle. This standing instruction authorizes Project enrollment and initial status, not unsolicited issue creation or implementation of the deferred work.
+
+Use the authenticated GitHub tooling described below. Add or reuse the Project item for the exact issue URL or node ID, paginating lookups as needed; do not match only by title or create a draft item in its place. Discover the Project's current single-select `Status` field and exact `Todo` option IDs. Explicitly set `Todo` for a newly enrolled issue, or verify it is already set; do not assume the Project's default workflow assigned it.
+
+On retries, reread the existing item and preserve subsequent status changes, closed/archived state and unrelated metadata. Do not reset an existing work item to `Todo` after it has progressed. Keep issue enrollment separate from the PR-specific Area and upstream-field requirements below.
+
+Read back the item and verify its nonempty ID, type `Issue`, exact issue URL, Project identity and saved status. Include the issue and Project links in the handoff. If enrollment, setting `Todo` or readback fails, report the exact pending operation and error; do not claim tracking is complete or create replacement fields/options.
+
+For example, [buildimage issue #150](https://github.com/securely1g/sonic-buildimage/issues/150) records enabling the global `rules_foreign_cc` path-normalization setting. Creating this future-work issue must also produce a Project item pointing to that same issue with `Todo` status; opening the GitHub issue alone is insufficient.
+
 ## Track created pull requests
 
 After creating a Bazel migration PR within the user's authorized task, add it to [SONiC Bazel Migration](https://github.com/users/securely1g/projects/1) when the PR's destination repository is owned by `securely1g`. Include draft PRs and PRs for build support, CI, packaging, shared dependencies, or migration documentation. This standing instruction authorizes Project enrollment, Area classification, and the canonical and derived upstream fields below for a qualifying PR; it does not authorize creating the PR itself.
