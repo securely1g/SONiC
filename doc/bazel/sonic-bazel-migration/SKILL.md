@@ -16,6 +16,68 @@ Use the existing build contract as the baseline, model it explicitly in Bazel, a
 
 For migration planning, implementation or completion review, read [the migration workflow](references/migration-workflow.md). Select source compilation, Python wheels, Docker assembly, or Debian package import/production explicitly; each has its own completion evidence. For container work, apply the runtime source-build requirement below and use [the common Docker template](references/docker-image-template.md). Its imported-package adapter is for allowed external inputs or an explicitly narrower task; it does not waive source-build coverage. Use [the migration checklist](references/migration-checklist.md) to record scope and results. Read [the swss-common lessons](references/swss-common-lessons.md) when working with native libraries, bindings, packaging, or CodeQL, or when a similar failure needs diagnosis.
 
+## Technical procedure and component routes
+
+Read [the common contract](references/common-contract.md) before analysis, implementation or validation.
+Use [component discovery and staged execution](references/component-workflow.md) to identify actual Make
+producers, expand the requested dependency closure, and pass analysis → implementation → verification
+records between stages. The [14-group analysis contract](references/analyze-make-component.md) is the
+source of implementation expectations; the [implementation procedure](references/implement-component.md)
+maps each fact to a rule, public target, installed output and required consumer check.
+
+| Work being performed | Detailed procedure and examples |
+| --- | --- |
+| C/C++, headers, static/shared libraries, SONAME and platform-selected compilers | [Native C/C++](references/native-cc.md) |
+| Go/CGo, SDK, Gazelle, build tags, embedded resources, module and ZIP locks | [Go](references/go.md) |
+| Rust/Cargo, features, build scripts, native dependencies and owner libraries | [Rust](references/rust.md) |
+| Python source packages, wheel metadata, direct installation TAR and runtime dependencies | [Python](references/python.md) |
+| Flex, Bison, protoc, SWIG, Thrift and project generators | [Code generation](references/code-generation.md), [complete examples](references/code-generation-examples.md), [consumer tests](references/protocol-tests.md) |
+| Source identity, Debian source inputs, ordered patches and overlays | [Source preparation](references/source-and-patches.md), [module ownership](references/register-bazel-module.md) |
+| Platform/features and configure-derived headers | [Configuration](references/configuration.md), [controlled Autoconf probes](references/autoconf-probe.md) |
+| Execution tools, runfiles and declared action inputs | [Hermetic tools](references/hermetic-tools.md), [tool recipes](references/tool-recipes.md) |
+| APT payload/control, target libraries and execution tools | [APT interfaces](references/use-apt-libraries.md) |
+| APT, pip, Go and Cargo locks and refresh examples | [Dependency locking](references/dependency-locking.md) |
+| Installation TAR, wheel and optional approved DEB outputs | [Installation interfaces](references/install-interfaces.md), [DEB production](references/build-deb-with-sonic-deb.md) |
+| OCI runtime/debug assembly, inherited dependencies and installation metadata | [OCI procedure](references/oci.md), [image examples](references/image-assembly-examples.md) |
+| Kernel, rootfs, initramfs, ONIE, qcow2 and prebuilt inputs | [Image and kernel routes](references/image-recipes.md), [other input routes](references/language-recipes.md) |
+| Acceptance, evidence and stage handoff | [Review contract](references/review-port.md), [stage handoff](references/phase-handoff.md), [dependency collector](references/build-dep-graph.md), [Make evidence collector](references/component-analysis-script.md) |
+
+Read only applicable routes, including the references they trigger. A default component deliverable is
+a directly consumable installation TAR, matching symbols where applicable, and package metadata.
+Final DEB production retains the existing explicit-scope approval rule. Compile ordinary components
+with native language rules; select the C/C++ toolchain through platforms rather than naming a compiler
+toolchain on component targets.
+
+Before adding a Bazel feature switch, apply the [configuration admission requirements](references/configuration.md#admission-requirements-for-new-bazel-switches). Prove that the actual SONiC entry exposes the variation and trace it to its consumer. An unused upstream option does not establish a product setting. Settings without that evidence stay outside implementation, delegation and mandatory acceptance.
+
+## Use native Bazel actions and declared tools
+
+For ordinary components, model generation, compilation, linking, installation and packaging with
+native Bazel language rules and declared actions. Do not wrap configure/Make/CMake or
+dpkg-buildpackage in rules_foreign_cc, genrule, shell or a custom rule. Use controlled target-toolchain
+probes during migration, then native templates and platform/feature settings for routine builds.
+The kernel's specialized pipeline retains its documented exception; another specialized pipeline
+requires approval for that concrete approach. Tool/runtime declaration and hermeticity still apply.
+
+Prefer compatible existing project/shared rules, then BCR rules, then fixed source-built tools.
+Declared fixed prebuilt tools remain usable. Tools, interpreters, execution libraries, plugins,
+templates and data are execution inputs; headers and linked libraries for the output stay in target
+configuration. Reuse GNU Coreutils/Bash only under the project's established base-tool contract.
+
+## Keep shared changes compatible at each PR boundary
+
+Each PR must build with its complete proposed change and dependencies available at that stage.
+Keep existing calls, defaults, public labels and consumer behavior usable outside its scope.
+Compatible optional attributes, modes and outputs may extend the same rule; introduce a separate
+interface only when the old contract cannot be kept. Producers and consumers in the same repository
+may change in one commit/PR and be tested together; do not impose an artificial mixed-version
+producer/consumer matrix. Cross-repository prerequisites follow the existing publication, Draft and
+source-provenance rules. Validate existing consumers and the new behavior for each feature PR.
+
+The Make analysis is the default reference contract. Validate actual Bazel actions, installed
+artifacts and consumers; do not start the original Make build solely to create comparison artifacts.
+A separately requested physical comparison remains separately scoped.
+
 ## Use the SONiC workspace layout
 
 Use the `sonic-public` directory under the workspace selected by the controlling task. In the paths below, `<sonic-public>` means that resolved directory; do not infer a new workspace from a PR worktree's current directory.
@@ -148,9 +210,13 @@ Compile the component being migrated from its declared source, including its gen
 
 For an individual component migration, external dependencies may be pinned APT packages, native wheels, or compatible source-built modules. An OCI image request has the broader project runtime scope defined above; its project components are not exempt external binaries. Declare their versions, integrity, transitive requirements, ABI, and execution/target roles; validate the selected files and installed runtime behavior. A pinned binary dependency is an intentional input, not automatically unfinished migration work. Apply the source requirement to an external dependency when that dependency itself is the requested migration unit; do not expand a component migration into rebuilding all its dependencies. Read [component-source and external-dependency policy](references/source-builds-and-lockfiles.md) for the audit and DASH examples. Publish reusable dependency integration through the registry as described below.
 
-### Retain upstream configure/Make for external source packages
+### Compile external source packages with native rules
 
-When migrating an external source package while retaining its build system, use declared `rules_foreign_cc` actions for its upstream configure/Make build and stage the installed files into runtime and matching debug TARs. Follow [external source packages](references/external-source-packages.md) for source preparation, declared tools and dependencies, cache boundaries, and validation. Reuse Debian-maintained patches and copyright from the pinned Debian source archive when that is the SONiC baseline; do not duplicate them in registry overlays. This source-build path does not produce DEBs or require a separate DEB-packaging module. Preserve the existing central-registry check, dependency ownership and approval rule for new DEB package definitions.
+Use the same native generation/compilation/install procedure for an external source package. Read
+[external source preparation](references/external-source-packages.md) and the language route. Reuse
+Debian-maintained patches, notices and installation inputs from fixed archives; keep downloaded
+originals in declared external inputs and commit only required adaptations. An upstream build-system
+wrapper is limited to an explicitly approved specialized exception, not the default source migration.
 
 ## Keep reusable Rust libraries with their owners
 
@@ -176,19 +242,27 @@ Keep the canonical package dependency locks checked in, including `requirements_
 
 A requirements export may be generated during preparation when another checked-in canonical lock supplies the same versions, sources, and integrity for the supported configurations. Follow the [package-lock and export guidance](references/source-builds-and-lockfiles.md#keep-canonical-package-locks-in-git); do not add a second canonical lock merely to avoid committing a generated file.
 
+For the source-wheel environment workflow in this skill, keep the reviewed runtime
+requirements lock consumed by `python_runtime_lock` in Git, together with its Requires-Dist
+inputs and freshness check. The generic export alternative above applies only where an
+existing canonical lock and selected consumer actually provide that equivalent contract.
+
 ## Keep generated Bazel lockfiles out of Git
 
 For SONiC migrations governed by this skill, do not commit `MODULE.bazel.lock`. Ignore it, generate it in CI using Bazel's update mode, and retain it with resolved-dependency evidence as a CI artifact. A clean checkout must build without an existing `MODULE.bazel.lock`; do not require a checked-in file with `--lockfile_mode=error`. Preserve checked-in module versions, immutable source revisions, integrity hashes, toolchain/package snapshots, and separate ecosystem/package locks. Registry URLs follow the [registry URL policy](#use-main-registry-urls-for-local-builds-and-ci) below. Update workflows, artifact collectors, and documentation together; follow the [lockfile validation steps](references/source-builds-and-lockfiles.md#generate-bazel-resolution-state-in-ci).
 
 ### Generate Rust Bazel metadata during build preparation
 
-Keep `Cargo.lock` in Git. Generate and ignore `Cargo.Bazel.lock` before Bazel
+For an existing rules_rust/crate_universe consumer that requires this generated file, keep
+`Cargo.lock` in Git and generate and ignore `Cargo.Bazel.lock` before Bazel
 evaluates crate dependencies, using the pinned upstream `rules_rust` generator
 through the shared preparation helper in `sonic-build-infra`. Pin and verify the
 helper source, reject unexpected Cargo lock changes, and compare generated
 versions, sources and checksums with the tracked lock.
 
-Prepare owning libraries before consumers (Common, SWSS, then the image), using
+The [native Rust route](references/rust.md) uses the selected rules_rs/from_cargo interface directly
+when available and does not add an unused Cargo.Bazel.lock. Keep these rule-specific workflows
+distinct. Prepare owning libraries before consumers (Common, SWSS, then the image), using
 verified writable checkouts and explicit module overrides. In `rules_rust`
 0.74.0, non-root modules need existing metadata; an ordinary build action runs
 too late. Update source CI, CodeQL, image preparation, artifacts and commands
@@ -200,13 +274,22 @@ downstream integration, retaining generated locks and receipts. Follow the
 
 Classify dependencies by how they are consumed. Programs run by build actions, together with their private runtime libraries and data, belong to the execution side. The target system ABI foundation belongs to the compiler's sysroot; ordinary component and third-party libraries remain explicit target dependencies, whether source-built or imported from pinned packages. Prefer a compatible existing Bazel rule or toolchain; when pinned Debian packages supply execution tools, reuse or extend `sonic-build-infra`'s shared `build_tools` set instead of maintaining a component-local downloader and package lock.
 
-### Use one shared build-tools package set
+<a id="use-one-shared-build-tools-package-set"></a>
 
-Use only the existing `sonic-build-infra` `build_tools` APT dependency set for packaged execution tools. Add required tools to that set. Consumers may select subsets and define runtime targets, such as `kernel_runtime` or `foreign_runtime`, from the shared packages; those targets do not require separate APT dependency sets.
+### Share APT sources and locks across tool collections
 
-**Obtain explicit user approval before introducing another build-tools dependency set**, including a component-specific set such as `kernel_build_tools` or `p4_build_tools`. Explain the concrete requirement, why extending or selecting from `build_tools` cannot satisfy it, and the proposed additional set before implementation. General migration, build or CI approval does not authorize this exception. Honor approval already granted for that specific scope. This rule does not combine target-library or compiler-sysroot dependencies with execution tools.
+Keep one reviewed source configuration and one explicit APT production lock for the same project/source
+baseline. Image payloads, target libraries and execution tools select different collections from that
+lock; they do not require three independently owned locks. Reuse the existing shared build_tools set
+when it fits. Additional reviewed execution collections such as image/manual tools may use the same
+shared source and lock; keep collection ownership in infra instead of introducing component-private
+downloaders, sources or locks. Split lock ownership only for independent projects or source baselines.
 
-For custom rule attributes, use `cfg = "exec"` on the edge selecting a tool or its runtime bundle. Set `executable = True` only for an executable target, not a bundle or package payload. Keep target library dependencies in the consuming target's configuration. The `build_tools` name expresses ownership; the dependency transition selects execution configuration. Read [build tools and sysroot guidance](references/build-tools-and-sysroot.md) when adding generators, package-backed tools, or cross-compilation support, including the SAI example and validation requirements.
+For custom attributes, select tools and runtime bundles with cfg = "exec"; set executable = True only
+on a runnable target. Keep target libraries in target configuration. See the [execution-tool
+contract](references/build-tools-and-sysroot.md), [APT interfaces](references/use-apt-libraries.md) and
+[lock refresh procedure](references/dependency-locking.md). Preserve existing locked versions and
+checksums when extending collections under unchanged sources; review only the required new closure.
 
 ## Check Bazel Central Registry before custom modules
 
@@ -357,7 +440,7 @@ Maintain an **Upstream PR links** table in the Project README for navigation, wi
 
 Links describe required contents, not automatic merge ordering or merge blockers; a consumer may already pin those contents before its prerequisite PR merges. Recheck existing dependency evidence before adding or removing links. Preserve valid cross-repository and historical links: merging or closing a PR alone does not invalidate its relationship. Remove or replace a link when the underlying dependency changes or was disproved; an incomplete investigation is not a reason to clear it. New or retargeted PRs can require updates to their own and other affected consumer rows, including merged PRs. This tracking does not expand the repositories or PR actions authorized by the controlling task.
 
-Discover field types and option IDs through the configured GitHub CLI or supported Projects API. Write Area with the supported multi-select API and the complete set of Docker option IDs; a single-select edit cannot represent this field. Use `project item-edit` or the supported API for All upstream PRs. Read the item back and verify its nonempty ID, type `PullRequest`, PR URL, exact Area selection set and both upstream values, including intentionally blank values after checking available evidence. Include the Project link in the handoff. If enrollment, field updates, or verification fails, report the PR URL and the specific pending operation with the error; do not claim that tracking is complete.
+Discover field types and option IDs through the configured GitHub CLI or supported Projects API. Write Area with the supported multi-select API and the complete set of selected option IDs, including verified Docker consumers and independent image areas such as `base image`. Preserve valid existing selections when updating the set; a single-select edit cannot represent this field. Use `project item-edit` or the supported API for All upstream PRs. Read the item back and verify its nonempty ID, type `PullRequest`, PR URL, exact Area selection set and both upstream values, including intentionally blank values after checking available evidence. Include the Project link in the handoff. If enrollment, field updates, or verification fails, report the PR URL and the specific pending operation with the error; do not claim that tracking is complete.
 
 ### Dashboard columns
 

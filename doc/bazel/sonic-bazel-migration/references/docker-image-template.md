@@ -252,3 +252,16 @@ adapters in [orchagent](https://github.com/securely1g/sonic-buildimage/blob/7bbc
 and [syncd-vs](https://github.com/securely1g/sonic-buildimage/blob/7bbc035673798b44fd372e5b28bad086c0919d65/dockers/docker-syncd-vs/BUILD.bazel).
 Those revisions are design evidence, not current dependency pins or a claim
 that either example implements every completion check above.
+
+## Detailed assembly and producer interfaces
+
+Apply the [OCI procedure](oci.md) together with this template: inventory inherited project runtime
+components; consume each owner's direct installation TAR, matching symbols and metadata; include
+transitive source-package dependencies; select pinned APT data/control and external wheels through
+their managed interfaces; validate architecture, order, collisions, installation state and real
+services. The [image examples](image-assembly-examples.md) also cover rootfs, initramfs, kernel boot
+inputs and final image formats. Source wheels use the [direct installation interface](install-interfaces.md);
+fixed external wheels may use wheel_layer. A package format does not determine source ownership.
+
+Default acceptance compares the analyzed Make contract with actual Bazel actions and installed
+outputs; starting a Make build solely to obtain comparison artifacts is outside that default.

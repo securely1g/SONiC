@@ -9,7 +9,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Identify the repository, source revision, migration unit, downstream consumers, and applicable HLD phase.
 - State which producer changes, which consumer interface it preserves, and which inputs remain supplied by Make or published binaries. Record the selected workflow's completion checks.
 - Plan separate PRs for independent features. Identify each feature's concrete consumers, link their PRs when available, and explain the target/build path and need; follow the [feature-splitting workflow](shared-dependency-workflow.md#split-features-and-identify-their-consumers).
-- For Project tracking, apply [Docker Area classification](docker-area-classification.md): select every verified consuming Docker as a separate Area tag, including shared dependency PRs. Verify the native multi-select field, complete dropdown catalog and saved selection set; reconcile these during authorized babysitting.
+- For Project tracking, apply [Docker Area classification](docker-area-classification.md): select every verified consuming Docker as a separate Area tag, including shared dependency PRs. Independently include `base image` for verified host OS, kernel, rootfs, installer or image-assembly impact; preserve applicable Docker tags alongside it. Verify the native multi-select field, complete Docker/image-area catalog and exact saved selection set; reconcile these during authorized babysitting.
 - Inventory existing Make/Autotools/CMake or other build commands and any existing Bazel port.
 - Record only the outputs required by the current consumer: libraries, executables, generated files, bindings, TARs, Debian packages, wheels, or images. For TAR-to-OCI, apply the [output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci) and identify any genuine separate DEB consumer before proposing package work. Preserve the legacy Make package path and its CI.
 - Identify any proposed new DEB package definitions or packaging targets and record explicit approval before adding them. Record existing approved package scope; ordinary builds, rebuilds, tests and CI of those targets need no renewed DEB approval.
@@ -159,3 +159,15 @@ Apply this section to native ELF artifacts that require source-level debugging.
 | Consumers | Module and image integrations verified |
 | Performance | Environment, cache settings, and measured scenarios when applicable |
 | Remaining work | Pending configurations, gaps, and downstream dependencies |
+
+## Technical stage records
+
+- [ ] Complete the [14-group Make analysis](analyze-make-component.md); separate confirmed, unresolved and inapplicable facts.
+- [ ] Map original archive/packaging inputs and preparation phases to declared fetch rules; keep downloaded originals out of overlays.
+- [ ] Map each source/generator/configuration/install fact to a native target and real consumer using [implementation steps](implement-component.md).
+- [ ] Apply each relevant language, code-generation, installation and image route from the main entrypoint.
+- [ ] Keep source wheel metadata separate from final environment resolution; maintain checked-in runtime locks driven by Requires-Dist.
+- [ ] Use a shared APT source and lock for payloads, target libraries and execution tools; preserve existing package pins.
+- [ ] Keep the old public rule contract at each PR boundary; test same-PR producer/consumer changes together.
+- [ ] Run [contract-based acceptance](review-port.md), preserve exact inputs/artifacts and record PASS/FAIL/NOT_RUN/BLOCKED by configuration.
+- [ ] Keep local worktree/base-branch setup out of the technical component instructions; use the original workspace and PR policies where applicable.

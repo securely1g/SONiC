@@ -23,11 +23,13 @@ the old work-type categories such as
   PR changes and consumer links. Do not infer all Dockers from the repository
   name or from a generic shared-library relationship. Record supporting
   consumers/targets in triage. Assign each Docker or image area from its
-  verified impact. Leave Area unset when no affected area is established;
-  retain uncertain classifications for investigation rather than inventing
-  an association.
+  verified impact. For a new, unclassified item, leave Area unset when no affected area
+  is established. For an existing item, preserve valid selections and retain
+  uncertain classifications for investigation; incomplete evidence does not
+  authorize clearing them or inventing an association.
 
-Area is the set of affected Docker consumers, including transitive consumers.
+Area records verified Docker consumers, including transitive consumers, plus
+independently verified image areas such as `base image`.
 **All upstream PRs** still records only direct prerequisite PRs. Do not reverse
 or expand those dependency cells to implement Area classification.
 

@@ -1,17 +1,13 @@
 # External source packages with upstream configure/Make
 
-Use this path when Bazel should build an external package from source while
-retaining its upstream build system. A native per-file Bazel rewrite is separate
-work; it is not required for this path. First apply the existing
-[central-registry and upstream-support check](../SKILL.md#check-bazel-central-registry-before-custom-modules)
-and reuse compatible integration.
-
-The output contract is:
+Use this route to recover the SONiC source and packaging inputs, then compile ordinary packages
+with [native language rules](implement-component.md). Apply the existing central-registry check.
+An upstream configure/Make wrapper is only a separately approved specialized exception.
 
 ```text
-Verified source + maintained patches
-    -> declared configure/Make build -> staged installed files
-    -> runtime TAR + matching debug TAR -> consuming image
+Fixed source + packaging archives + ordered patches
+    -> declared source preparation -> native generation/compile/link actions
+    -> runtime TAR + matching debug TAR + metadata -> consuming image
 ```
 
 ## Prepare the maintained source
@@ -37,39 +33,28 @@ Where source reconstruction changes, compare the prepared tree with the
 distribution's normal extraction and patch application. Record revisions and
 hashes; archive checksum verification alone is not signature verification.
 
-## Run the upstream build through Bazel
+## Express the build through native Bazel actions
 
-Use the selected `rules_foreign_cc` version's `configure_make` or `make` rule as
-appropriate. Inspect its supported API and the upstream recipe; avoid a custom
-shell build framework when the standard rule suffices.
+Use the [14-group analysis](analyze-make-component.md) to derive complete source/header selections,
+parameters, feature conditions, generated files, interfaces and install destinations. Follow
+[source preparation](source-and-patches.md) through each original unpack/patch/overlay stage.
+Use the [native C/C++ route](native-cc.md) or the appropriate language procedure.
 
-- Declare the complete source inputs, including Makefiles, configure templates,
-  generated-input schemas and helper scripts. Declare installed outputs and keep
-  useful configuration logs.
-- Select the SONiC compiler toolchain explicitly. Preserve required configure
-  options, hardening, optimization, ABI and feature settings. Inspect actual
-  compiler/link commands: upstream recipes can override supplied tools or flags,
-  and a successful build can silently omit an optional feature.
-- Use declared execution tools for Make, autoconf/m4, pkg-config and generators
-  as needed, together with their private runtime libraries/data. Reuse compatible
-  toolchains or shared `build_tools`; custom tool edges use `cfg = "exec"`.
-  Headers and linked libraries remain target dependencies. Although pkg-config
-  executes on the build platform, it must read the selected target metadata.
-  Follow [build tools and sysroots](build-tools-and-sysroot.md).
-- Stage installation inside the action, normally with the required installed
-  prefix and `DESTDIR`. Avoid host installation, undeclared host headers/tools,
-  package-manager calls and downloads during compilation.
-- For this TAR-producing path, select compile/install targets without adding
-  `dpkg-buildpackage`, `sonic_deb` or another DEB producer. Inspect the transitive
-  action graph and invoked scripts to verify that output contract. Adding a
-  separately needed package definition follows the
-  [DEB package-definition approval rule](../SKILL.md#require-approval-before-adding-new-deb-package-definitions);
-  ordinary validation of existing approved package targets needs no new approval.
+- Derive each required static/shared library and program from Make analysis. Select the C/C++
+  toolchain through the target platform; component targets do not name a compiler toolchain.
+- Run configure capability probes only during migration with declared target-toolchain and library
+  inputs, then express the results through native templates and configuration branches. Do not run
+  configure/Make/CMake as the ordinary compile action.
+- Declare every generator, schema, import/plugin/template and output before wiring native consumers.
+  Tools use execution configuration; output headers/libraries use target configuration.
+- Declare installation files and metadata directly, preserve modes/links/notices, and export runtime
+  and matching symbol TARs. Keep optional approved DEBs separate from the compilation graph.
 
-Bazel caches the declared foreign build action. A source change can rerun the
-package's configure/Make build; do not claim per-source Bazel cache reuse.
-Keep runtime/debug packaging and consuming image assembly as separately declared
-targets so unchanged outputs can be reused at those boundaries.
+For an explicitly approved specialized exception, verify the selected adapter's API and toolchain
+selection, declared inputs, DESTDIR, installed outputs, logs and actual compiler/linker flags. Use
+declared tools and target libraries; do not install on the host or download during compilation.
+A foreign action caches the package build as a unit and does not prove per-source compilation reuse.
+Keep native install and downstream image targets separate where their contracts permit.
 
 ## Package runtime files and matching symbols
 
@@ -109,7 +94,7 @@ before adding a new package definition, then validate the approved target normal
 - Keep third-party integration in its registry module and generic mechanisms in
   build-infra under the existing [ownership policy](../SKILL.md#publish-reusable-dependency-support-through-the-registry).
   Consumers select the producer's public targets instead of duplicating its
-  configure/Make recipe.
+  source-build recipe.
 - Verify the consumer's actual selected module, source revision and recipe
   integrity. Updating a producer PR does not update pinned consumers. Reassess
   obsolete packaging follow-ups against the current consumer graph; close them

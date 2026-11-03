@@ -19,7 +19,7 @@ establish cross-compilation support.
 | Requested work | Implementation and acceptance |
 | --- | --- |
 | Compile a component | [Source build](#source-build): declared generation/compilation/link actions, source coverage and real consumers |
-| Retain an external package's configure/Make build | [External source packages](external-source-packages.md): declared upstream source build, staged runtime/debug TARs, no DEB production |
+| Migrate an external source package | [External source packages](external-source-packages.md): fixed source/patch inputs, native language actions and runtime/debug TARs |
 | Produce Python wheels | [Python distributions](#python-distributions): source library plus complete wheel and installed-package checks |
 | Build a Docker/OCI image | [Docker assembly](#docker-assembly): Bazel-built project runtime dependency closure, shared structure, checked payloads, installed runtime and exported archives |
 | Reuse existing DEBs | [Debian import](#import-existing-debian-packages): pinned package set, producer provenance, cache and consumer checks |
@@ -38,6 +38,10 @@ earlier workaround or helper.
 For Docker-to-Bazel work, [split dependency build changes from the container PR](docker-image-template.md#split-dependency-work-from-image-integration): one PR per dependency component for its source-build and runtime/debug TAR support. Image integration consumes those targets and records actual prerequisite links. Follow the [TAR-to-OCI output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci); introduce new DEBs only for a separately scoped consumer that requires that format, while preserving the legacy Make build.
 
 ## Source build
+
+Apply the [14-group Make analysis](analyze-make-component.md), [source-input provenance](source-and-patches.md),
+[implementation mapping](implement-component.md) and applicable language/generator route before writing rules.
+
 
 Compare the legacy source, headers, feature conditions, generators, programs and
 bindings with the Bazel graph. Keep maintained targets near their source, with
@@ -59,16 +63,20 @@ of declared source actions remain valid. Importing the component's finished
 binary does not satisfy source migration. Pinned external binary dependencies
 remain allowed.
 
-For one external package, retaining its upstream configure/Make recipe through
-declared `rules_foreign_cc` actions is a valid source build. Follow
-[external source packages](external-source-packages.md) to prepare maintained
-sources and patches, declare tools and dependencies, and produce runtime/debug
-TARs without DEBs. Bazel caches the foreign build at action granularity; this
-does not establish independently cached per-source compilation. An opaque
-wrapper around a whole legacy product build remains an intermediate integration,
-not evidence that its individual component inputs and producers are modeled.
+Ordinary external packages use the [native component procedure](implement-component.md) and
+[maintained-source preparation](external-source-packages.md). Retaining a specialized upstream build
+requires explicit approval for that exception. Record its action/cache granularity accurately.
 
 ## Python distributions
+
+Use the [Python procedure](python.md) and [installation contract](install-interfaces.md). Wheel creation
+records direct Requires-Dist metadata; resolve the combined pip runtime closure when assembling the
+Docker/rootfs environment, not independently in every source wheel. Share the owner's explicit payload
+and metadata between py_wheel and direct installation TAR targets. Do not wheel-then-unpack source
+packages merely to assemble the image. Fixed external wheels retain their managed wheel_layer path.
+Runtime lock inputs include wheel metadata/Requires-Dist and target markers; keep the resulting lock
+in Git and use the [complete lock-generation example](dependency-locking.md#pip-runtime-lock-generation-example).
+
 
 Keep libraries, CLI targets, direct requirements and wheel definitions with the
 source owner. Use standard `py_wheel` support and an explicit owner payload, so
@@ -105,6 +113,10 @@ Retain wheel hashes, interpreter/architecture, dependency evidence, full-suite
 test inventory/results and an installation receipt tied to the same bytes.
 
 ## Docker assembly
+
+Follow the [detailed OCI sequence](oci.md), including producer metadata, transitive runtime
+dependencies, direct installation TARs, ordered layers and runtime/debug consistency.
+
 
 For the default OCI scope, first audit and satisfy the [project runtime source-build requirement](docker-image-template.md#require-bazel-built-project-runtime-dependencies),
 including inherited base components. Use the [common Docker template](docker-image-template.md)
@@ -154,6 +166,10 @@ source compilation or action-cache reuse.
 
 ## Produce Debian packages
 
+Use the selected [sonic_deb interface](build-deb-with-sonic-deb.md) after the separately approved DEB
+consumer is identified; reuse the same installation layout and final metadata as OCI/rootfs.
+
+
 First satisfy [source-build acceptance](#source-build). Keep source compilation,
 runtime/development/debug payloads and package assembly separately declared.
 Reuse shared packaging rules and extend shared infrastructure for verified gaps.
@@ -174,6 +190,11 @@ not require renewed approval. Fetching or extracting existing DEBs is the
 separate import path and does not authorize adding a new producer.
 
 ## Common integration and validation
+
+Use [review-port](review-port.md) to map each analysis fact to a concrete action, installed artifact
+and consumer check; preserve the existing source-PR CI, CodeQL, debug and publication requirements.
+Default comparison uses the analyzed Make contract, not a newly built Make artifact baseline.
+
 
 - **Preserve Make entry points.** Register supported configurations through the
   shared bridge and keep the legacy producer for unsupported profiles. A failure

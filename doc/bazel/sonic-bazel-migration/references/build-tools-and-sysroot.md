@@ -16,7 +16,7 @@ Apply the [component-source policy and dependency roles](source-builds-and-lockf
 
 ## Reuse shared inputs
 
-First look for compatible Bazel rules, modules, and toolchains, including the Bazel Central Registry. When the migration needs pinned Debian tools, reuse or extend `sonic-build-infra`'s `build_tools` set and its shared APT sources and lock mechanism. Follow the [single build-tools set policy](../SKILL.md#use-one-shared-build-tools-package-set) before proposing another execution-tool dependency set. Keep target compiler packages in `sysroot`. Publish shared module changes through `sonic-bazel-registry`; component rules consume those inputs and own their generator actions.
+First look for compatible Bazel rules, modules, and toolchains, including the Bazel Central Registry. When the migration needs pinned Debian tools, reuse or extend `sonic-build-infra`'s `build_tools` set and its shared APT sources and lock mechanism. Follow the [shared APT source/lock policy](../SKILL.md#share-apt-sources-and-locks-across-tool-collections) before proposing another execution-tool dependency set. Keep target compiler packages in `sysroot`. Publish shared module changes through `sonic-bazel-registry`; component rules consume those inputs and own their generator actions.
 
 Declare the tool's complete runtime dependencies: an executable alone may still load worker-installed libraries, invoke an interpreter from `PATH`, or read system dictionaries. Preserve the package payloads or runfiles required by the pinned implementation. Retire a component-local package lock and downloader after validating the replacement's tool versions and generated outputs.
 
@@ -49,4 +49,15 @@ Use existing rule/toolchain interfaces when they already make this selection. Fo
 
 SAI metadata generation uses Doxygen, Aspell, and the English dictionary from `build_tools`, together with their runtime dependencies. Its `tool_bundle` edge uses `cfg = "exec"`; generated metadata sources then feed the target build. This layout is recorded in [build-infra #8](https://github.com/securely1g/sonic-build-infra/pull/8), [registry #22](https://github.com/securely1g/sonic-bazel-registry/pull/22), and [the SAI module](https://github.com/securely1g/sonic-bazel-registry/pull/17). The earlier shared-sysroot implementation already selected tools in execution configuration; the separate set clarified ownership rather than repairing that transition.
 
-For the configurations in scope, inspect configured dependencies/actions to verify the selected tool architecture and declared inputs, exercise the tool without undeclared worker-installed copies, and compare generated outputs with the reference build. When claiming cross-compilation support, run the generator on the execution platform and compile its output for a different target architecture. Native AMD64 and native ARM64 tests can both pass while an incorrect target-configured tool edge remains hidden; record untested cross-platform pairs as gaps.
+For the configurations in scope, inspect configured dependencies/actions to verify the selected tool architecture and declared inputs, exercise the tool without undeclared worker-installed copies, and check generated outputs against the analyzed Make contract and existing reference evidence. When claiming cross-compilation support, run the generator on the execution platform and compile its output for a different target architecture. Native AMD64 and native ARM64 tests can both pass while an incorrect target-configured tool edge remains hidden; record untested cross-platform pairs as gaps.
+
+## Three APT consumption roles
+
+Use [APT interface selection](use-apt-libraries.md) for the exact calls and [lock refresh](dependency-locking.md#apt)
+for the preparation commands. A shared source configuration and production lock serve all collections:
+image/rootfs data/control, target CcInfo libraries, and execution tools/runtime closure. Keep library
+exports with the package producer and consume them directly. Extra reviewed collections share that
+lock; the name of a collection never substitutes for cfg = "exec" on a tool edge.
+
+For tool-specific declarations, see [tool recipes](tool-recipes.md); generator contracts and native
+consumption are in [code generation](code-generation.md).

@@ -70,8 +70,8 @@ instead of retaining every intermediate source revision.
 ## Separate execution tools from target dependencies
 
 Programs run during the build and their private runtime libraries/data belong in
-the execution configuration. Use the shared pinned `build_tools` set for APT
-tools and select them with `cfg = "exec"`. Libraries and headers consumed by the
+the execution configuration. Reuse the shared pinned APT tool collections (normally
+`build_tools`) from the common source/lock and select tools with `cfg = "exec"`. Libraries and headers consumed by the
 component remain explicit target dependencies. The compiler's system ABI
 foundation belongs in its target sysroot. These roles apply whether inputs are
 source-built or imported binaries.
@@ -158,6 +158,12 @@ this project policy as a universal Bazel requirement.
 
 ## Generate Rust Bazel metadata before dependency evaluation
 
+This subsection applies to an existing crate_universe/rules_rust consumer that actually needs
+Cargo.Bazel.lock. The [native Rust procedure](rust.md) and [lock instructions](dependency-locking.md#rust-crates)
+also describe rules_rs/from_cargo, which reads Cargo.lock directly. Use the preparation workflow
+matching the selected rule; do not introduce a generated file that no target consumes.
+
+
 `Cargo.lock` is the reviewed source dependency lock and stays in Git.
 `Cargo.Bazel.lock` is JSON metadata for `rules_rust`'s crate generator; generate
 it during preparation and ignore it alongside `MODULE.bazel.lock`.
@@ -243,3 +249,11 @@ The protoc execution bundle and compiler foundation are also declared inputs.
 Retain the distinction between the tested Python environments, and do not claim
 that every dependency was compiled from source or that component CI establishes
 full SWSS/image integration.
+
+## Complete package-lock procedures
+
+Use [dependency locking](dependency-locking.md) for the complete APT, Go ZIP, Cargo and pip commands.
+Keep canonical locks and required derived exports together. A pip environment lock depends on the
+source wheels' Requires-Dist metadata; Docker/rootfs composition selects the actual shared versions.
+APT uses one source and production lock per baseline with separate payload/library/tool collections.
+The existing MODULE.bazel.lock CI-artifact policy remains in force.
