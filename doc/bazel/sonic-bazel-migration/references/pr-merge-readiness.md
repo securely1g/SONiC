@@ -119,6 +119,42 @@ Record the head, workflow/run URLs and observed jobs; prior runs or an empty
 Checks tab do not verify the restored filters. Keep pending results distinct
 from success and retain the existing informational CodeQL policy.
 
+## Remove branch-specific CI exceptions
+
+Do not mark or retain a PR as Ready while its resulting code contains
+branch-specific checks or skips. This includes branch-name, PR-number and
+equivalent special cases that add checks as well as those that skip, replace
+or weaken them. Inspect workflow conditions and the scripts they call,
+including inherited special cases; green CI does not waive this gate. Preserve
+legitimate default-branch, release and event triggers that implement the
+maintained CI policy.
+
+Assess the current checkout, not matches in deleted diff lines. A PR that
+removes the special cases can be Ready when none remain and the other applicable
+readiness requirements pass. Removing branch-specific checks is not itself a
+reason to keep that PR in Draft.
+
+Remove the special case rather than extending its branch allowlist or renaming
+the branch to evade it. Put necessary checks in the normal suite with applicable
+configuration-based selection. Run that suite, including existing
+approved packaging tests and their temporary sample DEBs. The
+[DEB approval rule](../SKILL.md#require-approval-before-adding-new-deb-package-definitions)
+concerns new package definitions, not ordinary execution of existing tests.
+
+For example, [infra #78](https://github.com/securely1g/sonic-build-infra/pull/78)
+selected `//tools/build_tools:kernel_runtime` on `codex/dash-ha-rust-deps`
+instead of `//tools/build_tools:kernel_runtime_test`. Building the tool bundle
+omitted all of the test's execution checks, while `master` would run them.
+Remove the special case and run the test on the PR as well.
+
+Follow the task's validation requirements and
+[source PR CI completion](source-pr-ci.md) for final-head checkout and result
+provenance. Verify logs or test results show previously omitted checks actually
+ran before claiming full coverage; earlier green runs with the exception do not
+qualify. Honor an explicit request to wait for passing CI before setting Ready.
+Reassess already-Ready PRs under the same code-state gate and return them to
+Draft when special cases remain.
+
 ## Reconcile Draft and Ready for review
 
 On authorized PR creation, refresh, base changes, upstream-merge reassessment
@@ -132,7 +168,9 @@ Apply the scope assessment above before this table:
 | An in-scope registry selection uses a temporary endpoint or ineligible registry commit, or required entries are unavailable | Draft |
 | A registry PR proposes an unlanded or unverifiable SONiC source version, is stacked, or does not target maintained `master`/`main` | Draft |
 | Temporary CI branch-filter cleanup is still needed after retargeting a stack | Draft |
-| Dependency provenance, registry endpoint and any registry base/source requirements pass, and applicable CI branch-filter cleanup is complete | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
+| Branch- or PR-specific checks or skips remain in the resulting code | Draft |
+| The PR removes branch-specific checks or skips and none remain | No Draft hold from their deleted diff lines; assess the remaining applicable requirements |
+| Dependency provenance, registry endpoint and any registry base/source requirements pass, and applicable CI filter/exception cleanup is complete | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
 
 An upstream merge triggers reassessment; it does not make a consumer ready
 while an in-scope dependency still selects the former PR head. A head, base or
