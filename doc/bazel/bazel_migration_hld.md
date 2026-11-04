@@ -111,11 +111,12 @@ Users can control whether they want to build with Bazel or GNU make with a comma
 $ make target/docker-sysmgr.gz
 # Builds make-based target as usual
 
-$ BUILD_WITH_BAZEL_WHEN_AVAILABLE=y make target/docker-sysmgr.gz
-# make runs Bazel to build the target
+$ BAZEL_MIN_READINESS=experimental make target/docker-sysmgr.gz
+# make runs Bazel to build every target that declares at least
+# `experimental` Bazel readiness
 ```
 
-This flag will start off disabled by default. The implementation of this flag's semantics is defined in [section 7.a](#7a-changes-to-existing-build-system-bazelmake-interoperability).
+Each component declares how Bazel-ready it is in its recipe (`experimental` or `stable`, a maintainer's judgement), and the `BAZEL_MIN_READINESS` knob selects which declarations are honoured. The knob starts off as `bazel_disabled` by default, so nothing builds with Bazel unless requested. The implementation of these semantics is defined in [section 7.a](#7a-changes-to-existing-build-system-bazelmake-interoperability).
 
 To minimize disruption, we propose the following phases to the migration:
 
@@ -124,7 +125,7 @@ To minimize disruption, we propose the following phases to the migration:
 Phase 1 will introduce Bazel as an optional build system for some components.
 The goal is to validate whether and how SONiC could most benefit from Bazel.
 
-For this phase, `BUILD_WITH_BAZEL_WHEN_AVAILABLE` will be turned off by default.
+For this phase, `BAZEL_MIN_READINESS` will default to `bazel_disabled`.
 We will aim to migrate entire containers at once, though it's possible that a container can have _some_ Bazel-built parts and some Make-built parts.
 We will start adding Bazel builds for leaf, small containers such as `sysmgr`, `p4rt`, and the small watchdog binaries, and continue onto progressively larger leaf containers until we have sufficient coverage to be representative of the benefits and challenges that Bazel poses.
 
@@ -164,13 +165,13 @@ If we decide to move forward, we will continue onto Phase 2.
 
 ##### Phase 2: Migration Period
 
-At the start of this phase, we will flip `BUILD_WITH_BAZEL_WHEN_AVAILABLE` to be on by default.
+At the start of this phase, we will flip the default of `BAZEL_MIN_READINESS` to `experimental`, so every component that declares a readiness level builds with Bazel by default.
 This will signal to the community that we do intend to adopt Bazel, and that they should start adopting it into their internal forks if they haven't already.
 
 This will require an up-front effort to reconcile regressions that may have happened between the start and end of Phase 1.
-However, by turning `BUILD_WITH_BAZEL_WHEN_AVAILABLE` on, we'll also be making the Bazel build **blocking in CI**. As a consequence, any changes that break the Bazel build will have to be fixed before they're merged.
+However, by raising the default of `BAZEL_MIN_READINESS`, we'll also be making the Bazel build **blocking in CI**. As a consequence, any changes that break the Bazel build will have to be fixed before they're merged.
 
-It is possible that, at this point, the need arises for a per-component Bazel toggle. This is left as an [open question](#14-openaction-items---if-any).
+The per-component `_BAZEL_READINESS` declaration already acts as the per-component toggle: maintainers graduate a component from `experimental` to `stable` when they consider its Bazel build canonical, and consumers can raise `BAZEL_MIN_READINESS=stable` to build only those.
 
 We expect to increase coverage of targets that build with Bazel. Specifically, we'll transition to building the base layers (`docker-base-*`, `docker-config-engine-*`, and `docker-swss-layer-*`) with Bazel by default.
 As a consequence, by the end of this phase, we expect most users to be able to build their components entirely in Bazel, without the need of a slave container.
@@ -196,7 +197,7 @@ We propose the following structure:
         - Changes in versions of third party dependencies (Bazel modules, apt deps, or Python deps) will be flagged by a CI job.
         - Whenever a version of a third party dependency differs between Bazel and Make (in `files/build/versions-public/build/build-sonic-slave-trixie`), the CI job will fail.
     - The build working group will keep an eye on changes to the Make-based build system, and try to incorporate them into the Bazel system quickly. This will prevent technical debt from building up in preparation for Phase 2.
-- At the beginning of Phase 2: Bazel builds are blocking pre-submit. When we flip the default of `BUILD_WITH_BAZEL_WHEN_AVAILABLE`, the components that are migrated to Bazel will now be blocking the pre-submit checks.
+- At the beginning of Phase 2: Bazel builds are blocking pre-submit. When we raise the default of `BAZEL_MIN_READINESS`, the components that declare a readiness level will now be blocking the pre-submit checks.
 
 This phased approach allows us to establish critical infrastructure and let the build mature before we make it required for anyone.
 
@@ -217,7 +218,7 @@ The migration must satisfy the following requirements:
     * Resulting containers are comparable to those of the current system in size, runtime performance, and memory footprint
     * No regression in functionality of the produced images
 4. Gradual migration
-    * Bazel and GNU make coexist, with per-component opt-in and opt-out controlled by a single flag
+    * Bazel and GNU make coexist, with per-component opt-in via declared readiness levels, filtered by a single build knob
     * Components are migrated one at a time, starting from the least depended-on
     * A CI pipeline that validates the Bazel build to prevent drift between the two systems
 5. Platform and device coverage
@@ -250,52 +251,57 @@ The following sections will explain different parts of that PR.
 
 During the migration, Bazel and make will have to interoperate. This section explains the changes needed in the current build system to make that happen.
 
-We propose to **extend the existing build system to add the ability to build some targets with Bazel**. For example, with [docker-sysmgr](https://github.com/sonic-net/sonic-buildimage/blob/e09be005b19c3521c674e4415d08a25648fc15f4/rules/docker-sysmgr.mk#L21-L30):
+We propose to **extend the existing build system to add the ability to build some targets with Bazel**. For example, with [docker-sysmgr](https://github.com/sonic-net/sonic-buildimage/blob/54eb0632ba9dc93e784665280ce4ec19c122cef1/rules/docker-sysmgr.mk#L19-L24):
 
 ```diff
 # From sonic-buildimage#28005/rules/docker-sysmgr.mk
 
 ...
-+ifeq ($(BUILD_WITH_BAZEL_WHEN_AVAILABLE),n)
++# Bazel build. Selected only when BAZEL_MIN_READINESS is at or below the
++# readiness declared here; otherwise the legacy attributes apply and these
++# go unread.
++$(DOCKER_SYSMGR)_BAZEL_BASE += $(DOCKER_CONFIG_ENGINE_TRIXIE)
++$(DOCKER_SYSMGR)_BAZEL_READINESS = experimental
++SONIC_BAZEL_DOCKER_IMAGES += $(DOCKER_SYSMGR)
 +
 SONIC_DOCKER_IMAGES += $(DOCKER_SYSMGR)
 SONIC_INSTALL_DOCKER_IMAGES += $(DOCKER_SYSMGR)
-+
-+else
-+
-+$(DOCKER_SYSMGR)_BAZEL_BASE += $(DOCKER_CONFIG_ENGINE_TRIXIE)
-+SONIC_BAZEL_DOCKER_IMAGES += $(DOCKER_SYSMGR)
-+SONIC_TRIXIE_DOCKERS += $(DOCKER_SYSMGR)
-+
-+endif
 ...
 ```
 
-As shown in the example, the `BUILD_WITH_BAZEL_WHEN_AVAILABLE` configuration flag will toggle the entire Bazel behavior. When switched off, the system will use the regular make-based build:
+As shown in the example, both the Make and Bazel attribute sets are declared unconditionally; `slave.mk` picks one path per docker and leaves the other set unread. A docker opts in by joining the `SONIC_BAZEL_DOCKER_IMAGES` target group and declaring a readiness level (`experimental` or `stable`), and the `BAZEL_MIN_READINESS` configuration knob decides which declarations are honoured. At the default, `bazel_disabled`, the system uses the regular make-based build:
 
 ```make
 # From sonic-buildimage#28005/rules/config
 
 ...
-# Build eligible dockers (those registered in SONIC_BAZEL_DOCKER_IMAGES) with
-# Bazel instead of the legacy `docker build` flow.
-# When disabled, fall back to the normal Make docker build.
-BUILD_WITH_BAZEL_WHEN_AVAILABLE ?= n
+# Lowest readiness a component must declare for it to be built with Bazel.
+# A component opts in by setting $(DOCKER_FOO)_BAZEL_READINESS in its recipe.
+# Anything below this bar, or with no declared readiness at all,
+# falls back to the normal Make docker build.
+#
+#	bazel_disabled :  never build with Bazel
+#	experimental   :  build dockers declaring `experimental` or `stable`
+#	stable         :  build only dockers declaring `stable`
+BAZEL_MIN_READINESS ?= bazel_disabled
 ```
 
-This flag is defined in [rules/config](https://github.com/sonic-net/sonic-buildimage/blob/e09be005b19c3521c674e4415d08a25648fc15f4/rules/config#L164-L177), along with another flag to control where the Bazel cache directory goes, `SONIC_BAZEL_CACHE_SOURCE`.
+This knob is defined in [rules/config](https://github.com/sonic-net/sonic-buildimage/blob/54eb0632ba9dc93e784665280ce4ec19c122cef1/rules/config#L174-L182), along with another flag to control where the Bazel cache directory goes, `SONIC_BAZEL_CACHE_SOURCE`. [`slave.mk` validates and filters the declarations](https://github.com/sonic-net/sonic-buildimage/blob/54eb0632ba9dc93e784665280ce4ec19c122cef1/slave.mk#L1371-L1413): an invalid readiness value is a build error, as is a readiness level declared outside the group (where it would otherwise silently do nothing); dockers that clear the bar are removed from the legacy `DOCKER_IMAGES` lists; and debug images inherit their parent's readiness.
 
-We modify the rules execution engine to create targets for this new target type. In [`slave.mk`](https://github.com/sonic-net/sonic-buildimage/blob/e09be005b19c3521c674e4415d08a25648fc15f4/slave.mk#L1413-L1420):
+We modify the rules execution engine to create targets for this new target type. In [`slave.mk`](https://github.com/sonic-net/sonic-buildimage/blob/54eb0632ba9dc93e784665280ce4ec19c122cef1/slave.mk#L1553-L1561):
 
 ```make
 # From sonic-buildimage#28005/slave.mk
 
 ...
-# Targets for building docker images with Bazel.
+# Targets for building docker images (and debug images) with Bazel.
 $(addprefix $(TARGET_PATH)/, $(SONIC_BAZEL_DOCKER_IMAGES)) : $(TARGET_PATH)/%.gz : .platform \
-		$$(addprefix $(TARGET_PATH)/,$$($$*.gz_BAZEL_BASE))
+		$$(addprefix $(TARGET_PATH)/,$$($$*.gz_BAZEL_BASE)) \
+		FORCE_BAZEL
 	$(HEADER)
-	bazel run --config=slave //dockers/$*:write_$*.gz $(LOG)
+	bazel build //dockers/$*:$*.gz $(LOG)
+	out=$$(bazel cquery --output=files //dockers/$*:$*.gz 2>> $(PROJECT_ROOT)/$@.log)
+	cmp -s "$$out" $@ || { cp -f "$$out" $@ && chmod +w $@; }
 	$(FOOTER)
 
 SONIC_TARGET_LIST += $(addprefix $(TARGET_PATH)/, $(SONIC_BAZEL_DOCKER_IMAGES))
@@ -664,7 +670,7 @@ We expect to be able to leverage remote caching to make these builds significant
 ### 14. Open/Action items - if any 
 
 - **Should we add a per-component toggle during the migration?**
-    - If necessary, it's entirely possible to add a per-target flag, so that individual components can be toggled without affecting the rest of the build. We're not confident that the feature is needed, and the effort to implement it is relatively low, therefore we've left it out of this document.
+    - Addressed: each component now declares its own `_BAZEL_READINESS` level (`experimental` or `stable`), and the `BAZEL_MIN_READINESS` build knob filters which declarations are honoured. Individual components can thus be toggled (or graduated) without affecting the rest of the build.
 
 - **If we stand up a public remote cache, how would the hosting and trust models work?**
     - This area has extensive prior art, but a rough sketch would be that the cache would be hosted in current Azure infrastructure, and only CI jobs are allowed to write to it.
