@@ -41,6 +41,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Compare compiler, linker, and feature options with the baseline; document intentional differences.
 - For shared dependency changes, verify the source-to-registry-to-consumer chain and actual module resolution; prefer focused architecture checks for early feedback before expensive integration builds.
 - For an affected open registry stack, retain one unreleased candidate per module. Inventory other open module PRs and affected consumer selections; preserve published entries, recheck publication before cleanup, and remove superseded draft directories, metadata, and CI jobs together using the [draft-version workflow](shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module).
+- While Make still builds an external package, check with an automated test that its checkout and patch series match the registry entry. See [Make and registry lockstep](external-source-packages.md#keep-make-and-registry-sources-in-lockstep).
 
 **Completion evidence:** toolchain resolution and dependency analysis for each selected configuration, with remaining host dependencies identified.
 
@@ -131,6 +132,7 @@ Apply this section to native ELF artifacts that require source-level debugging.
 - For imported Make-built or prebuilt content, provide symbols from the matching producer build or record the coverage gap.
 - Validate the user-facing Make/Bazel entry point required by the current migration phase.
 - Follow the Docker template's locked APT selection, base-collision, installed-state, runtime/debug ancestry, archive and producer-transition checks; distinguish structural checks from actual image and service validation.
+- Build on the Bazel image that matches the Make parent without shipping parent-owned components again, replace Dockerfile edits of component files with checked transforms, and reproduce installation effects such as `ld.so.cache` in the layer that installs the packages. See [the Docker template](docker-image-template.md#build-on-the-matching-parent-image).
 
 **Completion evidence:** project runtime source coverage, consuming-image behavior, package selection, and debugger lookup are verified in the actual image. Record explicit narrower user scope and any remaining Make producers; image assembly or installer CI alone does not complete a default OCI migration.
 

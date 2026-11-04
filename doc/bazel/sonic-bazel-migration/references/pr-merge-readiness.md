@@ -77,6 +77,21 @@ remains eligible when unrelated commits advance the branch. Keep immutable
 full-SHA source pins where the existing policy requires them; maintained branch
 URLs still require checking the actual resolved revision.
 
+To check a pin, fetch the maintained branch and search its first-parent history
+for the full commit ID:
+
+```sh
+git rev-list --first-parent "origin/$branch" | grep -qx "$pinned_sha"
+```
+
+For example, [sonic-fips #12](https://github.com/securely1g/sonic-fips/pull/12)
+landed as merge commit `15fcb926`, whose second parent is the PR head
+`ef423363`.
+[Registry #197](https://github.com/securely1g/sonic-bazel-registry/pull/197)
+registered `sonic-fips@0.0.4-ef423363…`, which fails this check. That version
+is now published, so the correction is a new version from `15fcb926` or a later
+first-parent commit.
+
 When refreshing a pin, update all dependent version declarations, source URLs,
 integrity values, patches and CI references coherently. For a registry module,
 the source SHA in its version directory, `MODULE.bazel`, metadata and version
