@@ -274,6 +274,12 @@ If `main` lacks required unmerged entries, keep the committed default `.bazelrc`
 
 Before a consumer becomes or remains Ready for review, apply the [PR's readiness scope](references/pr-merge-readiness.md#scope-readiness-to-the-proposed-change). For relevant dependencies, remove temporary registry overrides and verify that local builds and CI both use the canonical maintained `main`/`master` URL. Any documented Bazel exception must also use a registry commit verified landed on that branch. Verify every required entry and its selected sources, and update effective configuration, workflows and documentation together. Apply the [registry readiness checks](references/shared-dependency-workflow.md#require-landed-registry-endpoints-before-review) to quiet Ready PRs too; missing or unverifiable prerequisites keep or return the consumer to Draft.
 
+### Enforce strict Bzlmod registry immutability
+
+Published module versions on the canonical `main` branch of `sonic-bazel-registry` are strictly immutable ([BP-16]). Once a release (e.g. `libnl3@3.7.0.sonic.6`) is merged to `main`, its files, metadata, patches, and hashes must never be modified in-place. Bug fixes, compiler response-file handling, and upstream adaptations must always be released under a new monotonic version number (e.g. `3.7.0.sonic.7`).
+
+When using unreleased candidate versions in registry PRs, SemVer 2.0 prerelease precedence rules apply: numeric identifiers sort before alphanumeric identifiers with the same prefix. For example, `0.0.8-43598143` is older than `0.0.8-a0450924`. Candidates that sort behind an already-merged release must bump the minor or patch version (e.g. `0.0.9-...`) so Bzlmod Minimal Version Selection (MVS) does not silently discard the candidate in favor of the older merged commit.
+
 ## Validate runtime and package behavior
 
 For native libraries, verify the ABI-facing contract: SONAME, exported interfaces, consumer-visible filename, runtime search behavior, multiarch path, symlink chain, and required runtime dependencies. Test a real dynamic consumer and the extracted package; building a target alone does not establish these properties.
@@ -281,6 +287,18 @@ For native libraries, verify the ABI-facing contract: SONAME, exported interface
 Match the required installed layout, ownership, permissions, configuration files, and package formats. Distinguish a runtime tar from a Debian package or wheel. Preserve each format that remains part of the declared consumer contract.
 
 Use existing functional tests where practical, and add focused regression tests for demonstrated migration boundaries. Record service-dependent or unsupported tests explicitly. Required targets should be named explicitly in validation and CI so platform incompatibility cannot silently remove an expected output from a wildcard build.
+
+### Avoid Netlink ODR and isolate C library dependencies
+
+Shared libraries (such as `libswsscommon.so`) must never statically archive system networking libraries (`libnl-3`, `libnl-genl-3`, `libnl-route-3`). Downstream daemons (such as `teamsyncd`, `teammgrd`, or `orchagent`) also link Netlink directly or via secondary libraries; statically embedding Netlink symbols in a shared library creates dangerous One Definition Rule (ODR) violations and duplicate symbol conflicts across dynamic namespaces ([BP-17]). All Netlink dependencies must be dynamically linked and SONAME-versioned.
+
+### Enforce symbol and DT_NEEDED parity verification
+
+Every container assembly and package rule must verify `DT_NEEDED` dynamic tags, ELF hardening flags (`BIND_NOW`, `RELRO`, stack canary, PIE), and symbol resolution ([BP-18]). Automated packaging contract tests must verify that no unexpected libraries are bundled, no required symbols are unresolvable at runtime, and hardened compiler flags match the Make baseline.
+
+### Structure component repositories as standalone Bzlmod modules
+
+To align with the upstream `sonic-net` HLD (#2396, PR #28005), multi-component repositories like `sonic-buildimage` should structure in-tree components (such as `src/libteam`) with their own `MODULE.bazel` in the component directory (`src/libteam/MODULE.bazel`), declaring their own module identity (`sonic-libteam`). The root repository's `MODULE.bazel` links to them via `local_path_override(module_name = 'sonic-libteam', path = 'src/libteam')`. This ensures each component remains cleanly buildable both as an in-tree component and as an independent Bazel module.
 
 ## Build debug artifacts from the deployed binary
 

@@ -23,6 +23,12 @@ The fix preserved the public Bazel target label, emitted `libswsscommon.so.0`, a
 
 Both tests passed on native AMD64 and ARM64; the runtime test also passed in a clean Trixie container. For another library, derive expected names from its ABI and packaging contract. [Filename fix](https://github.com/securely1g/sonic-swss-common/commit/968f39f9ca2f50c89a9dcaa048e8698f5de5d0f8) · [Regression tests](https://github.com/securely1g/sonic-swss-common/commit/fb39ce96f4a97d652f86be894e93a559fdb0350c)
 
+## Avoid Netlink ODR violations in shared libraries
+
+Statically linking system networking libraries into `libswsscommon.so` causes severe symbol duplication and One Definition Rule (ODR) violations in downstream daemons. In the initial Bazel packaging, `libswsscommon.so.0.0.0` statically embedded `libnl-3`, `libnl-genl-3`, and `libnl-route-3` archives. When consumers such as `teamsyncd` and `teammgrd` dynamically linked both `libswsscommon.so` and system `libnl-route-3.so`, 44 `nl_*` and `rtnl_*` symbols cross-bound into `libswsscommon` instead of the system netlink library.
+
+The fix unbundled static `libnl3` from `libswsscommon`, declaring dynamic dependencies via `DT_NEEDED` and relying on the runtime dynamic linker. When migrating shared libraries, never statically archive C libraries that are also consumed directly or transitively by downstream applications ([BP-17]).
+
 ## State CI coverage and inspect delivered archives
 
 The verified standalone CI used Bazel 8.5.1 and native AMD64/ARM64 runners with a dated Debian Trixie container. The resolved GCC 14.2 toolchains required matching execution and target CPUs. CI explicitly selected the required libraries, binaries, bindings, packages, and seven test targets, avoiding silent omissions from incompatible wildcard targets. Both jobs passed formatting, builds, and tests.

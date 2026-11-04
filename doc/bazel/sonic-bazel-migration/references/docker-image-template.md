@@ -182,6 +182,16 @@ from source migration of its still-external producers.
   Required alternatives, symlinks, package database, caches and generated state
   need explicit inputs/actions and checks. Do not equate DEB extraction with
   running maintainer scripts or complete package installation.
+- Ensure package database (`dpkg`) status records match layer ownership. When a
+  runtime library or daemon package (e.g. `libteam5`, `libteamdctl0`) is placed in
+  a shared layer (such as `docker-swss-layer-trixie`), its dpkg status registration
+  must be emitted in that layer rather than deferred to downstream container images
+  (such as `docker-teamd`).
+- Prevent redundant file duplication across layered container images. Shared
+  libraries provided by a lower foundational layer (e.g. `libswsscommon.so.0.0.0`
+  supplied by `docker-config-engine-layer-trixie`) must not be re-bundled in upper
+  layers (e.g. `docker-swss-layer-trixie`), avoiding unnecessary layer bloat and
+  potential multi-layer file shadowing.
 - Keep startup/supervisor files, entrypoint, environment, labels, modes,
   ownership and links aligned with the supported legacy image. Make overlapping
   paths and layer order intentional and reviewable.
