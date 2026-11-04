@@ -174,6 +174,6 @@ Verify applicable scope:
 - Label patch/series changes reevaluate preparation and reach consumers, excluding stale caches/overrides; separate mechanism and consumer evidence.
 - Required variants compile/consume; source-independent and registry entries validate separately.
 
-Analysis owns original chains; implementation owns Bazel mappings; verification owns actual commands/identities/results/evidence. Keep experiments temporary and production code limited to used inputs. Preserve the exclusion of original Make physical baselines.
+Analysis owns original chains; implementation owns Bazel mappings; verification owns actual commands/identities/results/evidence. Keep experiments temporary and production code limited to used inputs. The [equivalence check](make-bazel-equivalence.md) later compares delivered files with Make's, so prepared sources and patches must match the ones Make builds.
 
 References: [Bazel 8.5.1 http rules](https://github.com/bazelbuild/bazel/blob/8.5.1/tools/build_defs/repo/http.bzl), [patch ordering](https://github.com/bazelbuild/bazel/blob/8.5.1/tools/build_defs/repo/utils.bzl), [registry](register-bazel-module.md).

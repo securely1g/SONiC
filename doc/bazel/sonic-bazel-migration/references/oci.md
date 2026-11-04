@@ -419,7 +419,7 @@ docker run --rm --network=none --read-only --entrypoint /usr/bin/exampled \
 
 Docker is external validation, not regular actions. Provide required writes/mounts/devices/network/privileges by original service contract; example isolation flags are not universal. Real installation builds record/image/load and checks commands/scripts/triggers/state. Rebuild with identical configuration and compare production locks/provenance for read-only behavior.
 
-Apply [OCI acceptance](review-port.md#oci-specific-acceptance) and contract-derived missing-dependency/stale/architecture/conflict/wrong-receipt cases. Distinguish component/install/assembly/load/start/full-machine storage/boot results.
+Apply [OCI acceptance](review-port.md#oci-specific-acceptance) and contract-derived missing-dependency/stale/architecture/conflict/wrong-receipt cases, then run the [Make equivalence check](make-bazel-equivalence.md) on the runtime and debug archives. Distinguish component/install/assembly/load/start/equivalence/full-machine storage/boot results.
 
 ## 10. Failure ownership
 

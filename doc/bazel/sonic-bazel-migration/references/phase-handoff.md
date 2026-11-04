@@ -20,7 +20,7 @@ A complete analysis.json contains [all groups](analyze-make-component.md#analysi
     "evidence": ["evidence/install-rule.txt"]
   },
   "unresolved": [],
-  "execution_validation": [{"object": "Original Make artifact build", "status": "NOT_RUN", "reason": "Acceptance uses the analyzed rule contract"}]
+  "execution_validation": [{"object": "Original Make artifact build", "status": "NOT_RUN", "reason": "EXAMPLE delivers only a TAR; its consuming image's equivalence check builds the Make archive"}]
 }
 ```
 

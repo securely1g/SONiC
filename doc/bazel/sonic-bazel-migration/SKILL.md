@@ -5,7 +5,7 @@ description: "Add or assess Bazel support for SONiC component repositories, incl
 
 # SONiC Bazel Migration
 
-Use the existing build contract as the baseline, model it explicitly in Bazel, and validate the installed artifacts through their consumers. Apply the stages relevant to the user's requested scope; a scoped fix or audit does not require completing an entire repository migration.
+Use the existing build contract as the baseline, model it explicitly in Bazel, and validate the installed artifacts through their consumers and against the Make artifacts they replace. Apply the stages relevant to the user's requested scope; a scoped fix or audit does not require completing an entire repository migration.
 
 ## Establish the requested outcome
 
@@ -40,7 +40,7 @@ maps each fact to a rule, public target, installed output and required consumer 
 | Installation TAR, wheel and optional approved DEB outputs | [Installation interfaces](references/install-interfaces.md), [DEB production](references/build-deb-with-sonic-deb.md) |
 | OCI runtime/debug assembly, inherited dependencies and installation metadata | [OCI procedure](references/oci.md), [image examples](references/image-assembly-examples.md) |
 | Kernel, rootfs, initramfs, ONIE, qcow2 and prebuilt inputs | [Image and kernel routes](references/image-recipes.md), [other input routes](references/language-recipes.md) |
-| Acceptance, evidence and stage handoff | [Review contract](references/review-port.md), [stage handoff](references/phase-handoff.md), [dependency collector](references/build-dep-graph.md), [Make evidence collector](references/component-analysis-script.md) |
+| Acceptance, evidence and stage handoff | [Review contract](references/review-port.md), [Make equivalence check](references/make-bazel-equivalence.md), [stage handoff](references/phase-handoff.md), [dependency collector](references/build-dep-graph.md), [Make evidence collector](references/component-analysis-script.md) |
 
 Read only applicable routes, including the references they trigger. A default component deliverable is
 a directly consumable installation TAR, matching symbols where applicable, and package metadata.
@@ -75,8 +75,9 @@ producer/consumer matrix. Cross-repository prerequisites follow the existing pub
 source-provenance rules. Validate existing consumers and the new behavior for each feature PR.
 
 The Make analysis is the default reference contract. Validate actual Bazel actions, installed
-artifacts and consumers; do not start the original Make build solely to create comparison artifacts.
-A separately requested physical comparison remains separately scoped.
+artifacts and consumers against it. Images and DEBs that replace Make outputs must also pass the
+[Make equivalence check](#check-equivalence-with-the-make-build), which builds Make's artifacts from
+the same tree and compares them with Bazel's.
 
 ## Use the SONiC workspace layout
 
@@ -365,6 +366,18 @@ Match the required installed layout, ownership, permissions, configuration files
 
 Use existing functional tests where practical, and add focused regression tests for demonstrated migration boundaries. Record service-dependent or unsupported tests explicitly. Required targets should be named explicitly in validation and CI so platform incompatibility cannot silently remove an expected output from a wildcard build.
 
+## Check equivalence with the Make build
+
+While Make still builds an image or DEB, its Bazel replacement must ship the same files. Use the equivalence checker from [sonic-net/sonic-buildimage#28005](https://github.com/sonic-net/sonic-buildimage/pull/28005), `tools/bazel/test_equivalence.sh`. It builds Make's artifacts from the same clean checkout with the Bazel path disabled, then pairs each Bazel image archive and approved `sonic_deb` package with Make's file of the same name. It compares plain files byte for byte, symlinks by target and ELF files with `elfcompare`, including debug files paired by build ID. Any difference fails the run unless a rule in `tools/bazel/equivalence_checker/rules.py` names it and states the cause.
+
+- Run it in `sonic-buildimage` for every PR that adds or changes Bazel image or DEB outputs or their inputs, covering both runtime and `-dbg` archives. Component and registry PRs that deliver TARs are compared through the image PR that selects them.
+- Build the same source revisions and patches on both sides. Resolve a mismatch between Make's checkout and Bazel's selected source before comparing.
+- Prefer fixing a difference to accepting it. A rule names the affected paths, and for package version drift both versions, so that a new difference still fails. Do not add a DEB package definition only to feed the checker.
+- Keep the layout, permission, installed-runtime, service and debug checks; the checker compares contents, not modes, owners or behavior.
+- Do not mark the PR Ready for review or report the migration complete until a run on its current head reports no unaccepted differences. Record the summary and keep `target/equivalence-report.json` with the validation evidence.
+
+If `sonic-buildimage` lacks the checker, port it from that PR in a separate prerequisite PR instead of writing another comparator. Follow [the equivalence procedure](references/make-bazel-equivalence.md) for commands, rule examples, the docker-sysmgr example and porting notes.
+
 ## Build debug artifacts from the deployed binary
 
 For native ELF packages using the SONiC debug rules, derive the runtime copy and detached debug file from the same linked ELF. In the reviewed implementation, `sonic_deploy_tar` with `force_debug_build = True` retains debug information before splitting by applying `--copt=-g`, `--strip=never`, and a linker build ID while preserving the selected compilation mode and optimization settings. Verify these semantics in the pinned rule version before relying on them.
@@ -537,4 +550,4 @@ For module registration or update work in `sonic-bazel-registry`, scope each PR 
 
 Follow the migration phase and exit criteria selected by the project. The [SONiC Bazel migration HLD](https://github.com/sonic-net/SONiC/blob/master/doc/bazel/bazel_migration_hld.md) describes the upstream phases; inspect a fork's HLD when it carries applicable design changes. Preserve the legacy path for configurations whose migration phase still requires it.
 
-Report completion by configuration rather than by repository name alone. Include the source revision, OS/toolchain, execution and target architectures, features, required targets, test coverage, artifact formats, debug coverage, and downstream consumer validation. Distinguish verified results, planned work, and unresolved gaps. Record clean and representative incremental timings when performance evaluation is requested or part of the project's exit criteria.
+Report completion by configuration rather than by repository name alone. Include the source revision, OS/toolchain, execution and target architectures, features, required targets, test coverage, artifact formats, debug coverage, Make equivalence results, and downstream consumer validation. Distinguish verified results, planned work, and unresolved gaps. Record clean and representative incremental timings when performance evaluation is requested or part of the project's exit criteria.

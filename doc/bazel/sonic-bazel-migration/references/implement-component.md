@@ -77,7 +77,7 @@ Apply [minimal declarations](common-contract.md#minimal-declarations-and-direct-
 
 Probe under controlled inputs during migration and generate templates during normal builds. Use patched configure.ac/m4/config.h.in and other templates to identify all outputs and configure effects on selection, options and installation.
 
-Use Bazel-selected compilers, target sysroot, dependency headers/libraries/options and original features. Containers may host probing without changing declared identities. Save source/patch/toolchain/dependency/platform/environment/command identities and config.log/config.status/generated-file evidence temporarily. This is migration analysis, without a Make artifact baseline build.
+Use Bazel-selected compilers, target sysroot, dependency headers/libraries/options and original features. Containers may host probing without changing declared identities. Save source/patch/toolchain/dependency/platform/environment/command identities and config.log/config.status/generated-file evidence temporarily. This is migration analysis; probing needs no Make artifact build.
 
 For each setting record value, origin, applicable inputs and consumer. Express only necessary values:
 

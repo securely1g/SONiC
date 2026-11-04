@@ -4,7 +4,7 @@ Read the [shared contract](common-contract.md). Expectations come from completed
 
 ## Current verification scope
 
-Do not add original Make baseline builds or physical Make/Bazel artifact comparisons. Missing original DEBs/wheels/logs are not incomplete acceptance. Use analyzed compile/install/consumer contracts and existing native/install interfaces. Default delivery is OCI-consumable TAR; original package/co-production facts determine retained contents, not mandatory final DEBs. Add DEB packaging/export only on explicit request; add physical comparisons only if later requested.
+Use analyzed compile/install/consumer contracts and existing native/install interfaces. Default delivery is OCI-consumable TAR; original package/co-production facts determine retained contents, not mandatory final DEBs. Add DEB packaging/export only on explicit request. A TAR-only component delivery needs no original Make artifacts; its consuming image does. Image archives and approved DEBs that replace Make outputs pass the [Make equivalence check](make-bazel-equivalence.md) against Make's artifacts built from the same tree.
 
 Fully inspect Bazel artifacts/actions. Report analysis, implementation and validation separately. Derive support matrices from task contracts, not universal AMD64/ARM64 examples.
 
@@ -31,7 +31,7 @@ Construct commands from [actual infra/rc](infrastructure.md), not borrowed alias
 
 Preserve upstream/SONiC defaults, enabling/skipping conditions, inputs and assertions. Built tests are not automatically default-executed tests. Classify required acceptance versus extra diagnostics beforehand. Optional normally skipped programs are diagnostics unless requested or necessary for affected functionality.
 
-Determine causality from source/generation/compile/link/environment evidence before changing code. Optional status does not exclude regressions. Old Bazel outputs prove their own versions only. Without Make execution describe inference/evidence gaps rather than claiming measured Make failures. Do not automatically add baseline builds.
+Determine causality from source/generation/compile/link/environment evidence before changing code. Optional status does not exclude regressions. Old Bazel outputs prove their own versions only. Without Make execution describe inference/evidence gaps rather than claiming measured Make failures. Do not add Make builds solely for failure attribution; Make artifacts built for the equivalence check remain usable evidence.
 
 - Introduced differences or required-contract failures: fix owning layers and rerun.
 - Independently evidenced existing defects exposed only by optional diagnostics: preserve upstream behavior, record trigger/cause/evidence/scope and hand off separately unless authorized.
@@ -95,7 +95,7 @@ Follow [source checks](source-and-patches.md#6-updates-and-verification): origin
 - Check actual ordered libraries/versions/static-shared/link states including as-needed/whole-archive/groups. Direct symbol consumers declare direct deps; shared adapters retain linking context/runfiles.
 - Verify all interface files reachable in actual configuration and source identities match Make injection. System libraries map to public APT per-library/header/link/runtime interfaces, without private extraction/import/CcInfo filtering or -l/-L substitutes. Necessary state flags still reference declared inputs.
 
-Map actual values to fixed/expressed/probed Make semantics. Explain permitted differences and feature/ABI/security/layout effects. Unordered sets or removed path options cannot hide differences. Binary hash/disassembly equivalence is outside this phase.
+Map actual values to fixed/expressed/probed Make semantics. Explain permitted differences and feature/ABI/security/layout effects. Unordered sets or removed path options cannot hide differences. Byte-identical objects are not required here; the [equivalence check](make-bazel-equivalence.md) compares the delivered ELF files with `elfcompare`.
 
 ### Configuration and fixed parameters
 
@@ -109,7 +109,7 @@ Check [versions/closures](code-generation.md), actual transitives/plugins/templa
 
 ### Autoconf template generation
 
-Map each value to controlled evidence/inputs/consumer across required matrices. Probe compiler/sysroot/headers/libraries/options must match actual Bazel configuration. Cross runs require target evidence/contracts. Check undef/zero/escaping/version/path and configure-driven source/options/link/install choices. Necessary values belong in attributes/templates with complete inputs. Keep evidence temporary and recheck values after source-input changes. No Make artifact baseline is added.
+Map each value to controlled evidence/inputs/consumer across required matrices. Probe compiler/sysroot/headers/libraries/options must match actual Bazel configuration. Cross runs require target evidence/contracts. Check undef/zero/escaping/version/path and configure-driven source/options/link/install choices. Necessary values belong in attributes/templates with complete inputs. Keep evidence temporary and recheck values after source-input changes. Probing itself needs no Make artifact build.
 
 ### Bazel artifacts and installation contract
 
@@ -118,7 +118,7 @@ Verify [production/consumption](install-interfaces.md): source DEB/wheel install
 - Inspect required native interfaces/runtime/development/tool TARs/symbols/metadata and missing/extra content; wheels separately. Default presubmits avoid unsolicited DEB packaging/tests/export/bridges.
 - Explicitly build public runtime/symbol/metadata and verify layout/closure/authority/real payload relationship. New DEBs must preserve existing TAR/image validation; packaging alone proves only that branch.
 - Use existing image APIs or minimal real consumers with explicit proof scope. Full OCI tasks also validate assembly/required startup.
-- Requested DEBs check control/members/types/modes/owners/links/scripts/configuration against analyzed transforms/versions/architecture/relations/dynamic rules.
+- Requested DEBs check control/members/types/modes/owners/links/scripts/configuration against analyzed transforms/versions/architecture/relations/dynamic rules, and pass the [equivalence check](make-bazel-equivalence.md) against Make's package of the same name.
 - Wheels check contents/resources/METADATA/entries/RECORD/tags/ABI; installed copies check interpreter/imports/entries.
 - ELF checks Machine/interpreter/SONAME/NEEDED/RPATH/RUNPATH/closure, installed versus runfiles paths, and build-id/debuglink/debug queries.
 - Check scripts/upgrades/config retention in appropriate isolation. OCI checks base identity/source/APT/wheel/order/user/entry/config/startup, installed status/metadata/receipt/payload and precise coverage of later source layers. Check accounts/directories/modes/services/caches. Debug images match exact runtime/final symbols. Installation/disk images check partitions/rootfs/kernel/initramfs/container storage and actual installer/boot behavior; structure is not boot proof.
@@ -138,6 +138,7 @@ Derive applicable matrix from [OCI](oci.md)/analysis. Record identities/commands
 | Runtime ABI | Loader/NEEDED/search/architecture, Python imports/entries/resources/metadata | Missing runtime revealed by installed copy, restored after fix |
 | Real installation | Configured rootfs/raw DEBs/native tools/runtime, actual scripts/triggers/status | Deleted files stay deleted, failures do not publish success |
 | Debug | Exact runtime, matching source/system symbols/tools | Wrong runtime/symbol identities detected |
+| Make equivalence | Runtime/debug archives pass the [equivalence check](make-bazel-equivalence.md) against Make's archives from the same sources | Unaccepted differences fail; fix the owner or add a rule stating the cause |
 | OCI/runtime | Layout/archive digest/config/user/entry/options/signals/services | Separate load/start/self-check/native/cross evidence |
 
 Explain inapplicable branches from original contracts. OCI success does not prove whole-machine storage/install/boot acceptance.

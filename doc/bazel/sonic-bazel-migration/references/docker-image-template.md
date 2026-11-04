@@ -55,7 +55,8 @@ together. Add a DEB producer only for a separately scoped consumer requiring tha
 format; split its related packages by producing component.
 
 The container PR consumes the resulting public targets and versions, assembles
-the image and validates the Make/installer handoff. Reuse already available
+the image, validates the Make/installer handoff and runs the
+[Make equivalence check](make-bazel-equivalence.md). Reuse already available
 targets directly. Link required producer/registry PRs and keep readiness tied to
 the actual selected dependencies. Pending producer work remains a source-build
 gap; dividing it into PRs does not make the overall OCI migration complete.
@@ -246,6 +247,11 @@ for a narrower task:
    invalidation; retain source/configuration, package and image hashes, receipts,
    test results and resolved dependencies together. Revalidate consumers when
    package hashes change even if names and versions do not.
+7. **Make equivalence:** the runtime and debug archives pass the
+   [equivalence check](make-bazel-equivalence.md) against Make's archives built
+   from the same sources with the Bazel path disabled. Every accepted difference
+   is a named rule stating its cause; keep the summary and report with the
+   evidence.
 
 The structure generalizes the distinct source-payload and imported-package
 adapters in [orchagent](https://github.com/securely1g/sonic-buildimage/blob/7bbc035673798b44fd372e5b28bad086c0919d65/dockers/docker-orchagent/BUILD.bazel)
@@ -263,5 +269,5 @@ services. The [image examples](image-assembly-examples.md) also cover rootfs, in
 inputs and final image formats. Source wheels use the [direct installation interface](install-interfaces.md);
 fixed external wheels may use wheel_layer. A package format does not determine source ownership.
 
-Default acceptance compares the analyzed Make contract with actual Bazel actions and installed
-outputs; starting a Make build solely to obtain comparison artifacts is outside that default.
+Acceptance compares the analyzed Make contract with actual Bazel actions and installed outputs, then
+compares the runtime and debug archives with Make's through the [equivalence check](make-bazel-equivalence.md).

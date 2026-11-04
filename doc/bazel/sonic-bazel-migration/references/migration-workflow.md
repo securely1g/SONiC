@@ -127,8 +127,9 @@ selection, publication and validation mechanisms; preserve the distinct source
 and imported-package contracts.
 
 Completion requires the actual runtime/debug OCI outputs and consumer archives,
-installed filesystem/loading checks, and the service checks required by the
-requested product. Record helper fixtures, source layers, complete images,
+installed filesystem/loading checks, the service checks required by the
+requested product, and a passing [Make equivalence check](make-bazel-equivalence.md)
+for both archives. Record helper fixtures, source layers, complete images,
 installer construction, guest boot and forwarding as separate evidence. Do not
 promote success in an earlier stage into a claim about a later one.
 
@@ -193,7 +194,8 @@ separate import path and does not authorize adding a new producer.
 
 Use [review-port](review-port.md) to map each analysis fact to a concrete action, installed artifact
 and consumer check; preserve the existing source-PR CI, CodeQL, debug and publication requirements.
-Default comparison uses the analyzed Make contract, not a newly built Make artifact baseline.
+The analyzed Make contract guides each check; image archives and approved DEBs are also compared with
+Make's own artifacts by the [equivalence check](make-bazel-equivalence.md).
 
 
 - **Preserve Make entry points.** Register supported configurations through the

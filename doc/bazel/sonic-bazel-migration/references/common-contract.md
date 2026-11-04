@@ -56,7 +56,7 @@ For every ecosystem, inherit effective original dependencies and patches on firs
 
 Image runtime components export directly consumable installation TARs, applicable symbols and metadata. Source DEB/wheel installation branches consume contents and metadata directly, without packaging then unpacking. OCI and rootfs reuse that interface. Install pinned third-party distributions through their managed input path and reuse extracted results. Produce a final DEB only when explicitly requested, using shared sonic_deb.
 
-Validate actual Bazel actions, artifacts and consumers against the analyzed contract. Report analysis completion, successful builds, installation checks, registry consumption and image startup separately. Do not build original Make artifacts as a physical baseline in this workflow. Record PASS/FAIL/NOT_RUN/BLOCKED with commands, input identities, artifacts and the first raw error. Completion requires every mandatory check to pass. Implement shared requirements rather than merely recording that they were read.
+Validate actual Bazel actions, artifacts and consumers against the analyzed contract. Report analysis completion, successful builds, installation checks, registry consumption, image startup and Make equivalence separately. Image archives and approved DEBs that replace Make outputs pass the [Make equivalence check](make-bazel-equivalence.md); TAR-only components are compared through their consuming image. Record PASS/FAIL/NOT_RUN/BLOCKED with commands, input identities, artifacts and the first raw error. Completion requires every mandatory check to pass. Implement shared requirements rather than merely recording that they were read.
 
 ## Documentation boundary
 

@@ -87,6 +87,6 @@ Track analysis separately as pending_analysis/analyzing/analysis_complete/analys
 
 Protect manual progress before recollection and merge by stable identity. List additions/removals/dependency changes; retain retired history outside active counts. Reassess completed evidence after source/product/condition changes under [handoff](phase-handoff.md).
 
-At delivery check every requested/prerequisite task, product ownership and executable order; report finished/remaining items and evidence. Add Make switches/export only if requested. Ready prerequisites require implementation and evidence. Validate Bazel actions/artifacts against analyzed Make compile/install/interface contracts and existing native/install APIs. Do not add original Make physical-baseline builds; those are outside current mandatory acceptance unless later requested.
+At delivery check every requested/prerequisite task, product ownership and executable order; report finished/remaining items and evidence. Add Make switches/export only if requested. Ready prerequisites require implementation and evidence. Validate Bazel actions/artifacts against analyzed Make compile/install/interface contracts and existing native/install APIs. Image and DEB deliveries also pass the [Make equivalence check](make-bazel-equivalence.md); component TARs are compared through their consuming image.
 
 Read [module registration](register-bazel-module.md) for independent modules or patched external modules; record direct-source and actual registry validation separately.
