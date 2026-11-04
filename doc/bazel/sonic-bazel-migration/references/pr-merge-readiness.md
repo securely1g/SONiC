@@ -87,6 +87,36 @@ archive integrity, patched module contents and actual consumer resolution, then
 rerun required validation for the changed boundary. Tree equality is useful
 evidence but does not waive the landed-revision requirement.
 
+## Check landed commits mechanically
+
+Squash and rebase merges land a new commit, and the PR-head commit that
+consumers pinned during review never reaches the maintained branch. Check each
+in-scope pin with Git rather than by comparing trees or file contents:
+
+```sh
+# pinned_sha must be the full 40-character commit ID.
+git fetch origin main
+git merge-base --is-ancestor "$pinned_sha" origin/main
+git rev-list --first-parent origin/main | grep -qx "$pinned_sha"
+```
+
+The first command fails when the pin is not on the branch at all. The second
+fails when the pin is reachable only through a merge's second parent, which the
+landed-revision rule above also rejects. Then refresh the pin to the landed
+commit and update every dependent version, URL, integrity value and CI
+reference together.
+
+Real examples from the sFlow review:
+
+| Consumer | Pinned commit | Landed commit | Required action |
+| --- | --- | --- | --- |
+| registry #139 and buildimage #47 (kernel source) | `c894faf` (PR head before squash) | `34a53faa` (different tree) | Register and pin `34a53faa`; rerun validation |
+| buildimage #146, #156, #158 (source mirror config) | `4f1b2b16` (registry #186 head) | `6974c59` (same file blob `a123e07c`) | Re-pin to `6974c59`, even though the file is identical |
+
+Registry CI should run the ancestry check for every SONiC `source.json` commit
+it adds. Babysitter cycles should run it for consumer pins after each
+prerequisite merge.
+
 ## Verify the registry PR base
 
 Every registry PR must target the registry's maintained `master` or `main`

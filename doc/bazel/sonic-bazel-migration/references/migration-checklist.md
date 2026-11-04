@@ -41,13 +41,16 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Compare compiler, linker, and feature options with the baseline; document intentional differences.
 - For shared dependency changes, verify the source-to-registry-to-consumer chain and actual module resolution; prefer focused architecture checks for early feedback before expensive integration builds.
 - For an affected open registry stack, retain one unreleased candidate per module. Inventory other open module PRs and affected consumer selections; preserve published entries, recheck publication before cleanup, and remove superseded draft directories, metadata, and CI jobs together using the [draft-version workflow](shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module).
+- Confirm that each new commit-based candidate sorts above every published version and open candidate it replaces, and that third-party versions use `.sonic.N`. Record the version a real consumer actually selects, update root overrides with the candidate, and confirm no published version directory is deleted or changed. Follow [version selection checks](shared-dependency-workflow.md#check-that-new-versions-win-selection).
+- Check every in-scope SONiC source pin for first-parent ancestry on the maintained branch. Re-pin consumers after squash or rebase merges, even when trees match. Follow [landed-commit checks](pr-merge-readiness.md#check-landed-commits-mechanically).
+- When Make still builds an external package from `src/<package>/`, verify with an automated test that the Make checkout resolves to the registry `source.json` commit and that patch hashes and order match. Follow [Make and registry lockstep](external-source-packages.md#keep-make-and-registry-sources-in-lockstep).
 
 **Completion evidence:** toolchain resolution and dependency analysis for each selected configuration, with remaining host dependencies identified.
 
 ## 3. Build graph and feature coverage
 
 - Define targets for source libraries, linked binaries, generators, bindings, packages, and tests at useful cache boundaries.
-- When retaining an external package's configure/Make build, follow [external source packages](external-source-packages.md): fetch the maintained source/patch set, declare execution tools and target dependencies, stage installation, and select runtime/debug TAR outputs without DEB-producing actions. Record foreign-action cache granularity separately from native per-source caching.
+- When retaining an external package's configure/Make build, follow [external source packages](external-source-packages.md): fetch the maintained source/patch set, declare execution tools and target dependencies, stage installation, and select runtime/debug TAR outputs without DEB-producing actions. Record foreign-action cache granularity separately from native per-source caching. If a native `rules_cc` overlay is used instead, record why and compare its defines, flags and module list with the Make baseline. In either case, inspect the actual compiler command lines.
 - Keep reusable SONiC Rust library and binding rules with the library owner. Verify that consumers depend on the owner's target and remove duplicate consumer compilation/binding definitions; normal transitive builds and cache reuse remain valid.
 - Compare source and header inventories with the legacy build, including nested directories and conditional sources.
 - Trace the component's required outputs to their generation, compilation, and link actions. Trace imported external libraries to pinned package inputs; fetching source alongside an import does not prove that dependency was compiled.
@@ -131,6 +134,10 @@ Apply this section to native ELF artifacts that require source-level debugging.
 - For imported Make-built or prebuilt content, provide symbols from the matching producer build or record the coverage gap.
 - Validate the user-facing Make/Bazel entry point required by the current migration phase.
 - Follow the Docker template's locked APT selection, base-collision, installed-state, runtime/debug ancestry, archive and producer-transition checks; distinguish structural checks from actual image and service validation.
+- Build on the Bazel image matching the Make parent, and confirm that parent-owned components are not rebuilt or copied in the child. When the parent is still Make-built, confirm that child ELFs resolve the parent's project libraries. See [the parent-image chain](docker-image-template.md#mirror-the-make-parent-image-chain).
+- Replace each Dockerfile edit of an owner-installed file with a Bazel transform that checks its exact precondition and installed result. See [owner-file edits](docker-image-template.md#transform-owner-files-with-checked-edits).
+- For shared parent images, compare `ld.so.cache`, `/etc/ssl/certs` hash links and alternatives links with the Make image, and reproduce the needed effects with declared actions. See [installation side effects](docker-image-template.md#reproduce-installation-side-effects-in-shared-parents).
+- Keep the image `BUILD.bazel` focused on visible runtime/debug `oci_image` layers, with path lists in `bazel/` files and repeated debug pieces and checkers shared. See [image BUILD size](docker-image-template.md#keep-image-build-files-short).
 
 **Completion evidence:** project runtime source coverage, consuming-image behavior, package selection, and debugger lookup are verified in the actual image. Record explicit narrower user scope and any remaining Make producers; image assembly or installer CI alone does not complete a default OCI migration.
 

@@ -37,6 +37,55 @@ Where source reconstruction changes, compare the prepared tree with the
 distribution's normal extraction and patch application. Record revisions and
 hashes; archive checksum verification alone is not signature verification.
 
+## Keep Make and registry sources in lockstep
+
+While Make still builds the same package from `src/<package>/`, there are two
+recipes: the Make recipe (a checkout plus a `patch/series`) and the registry
+entry (`source.json` plus `patches/`). Both must select the same source:
+
+| Check | Make input | Registry input |
+| --- | --- | --- |
+| Source revision | The tag or short SHA used by `git checkout` in `src/<package>/Makefile` | The full commit in the `source.json` URL |
+| Patch set | Files listed in `src/<package>/patch/series`, in order | `source.json` `patches`, in order |
+| Patch bytes | SHA-256 of each Make patch | SRI hash in `source.json` |
+
+For the sFlow packages in buildimage #152, these values matched when checked by
+hand:
+
+- hsflowd: Make checks out tag `v2.1.26-1`, which resolves to `41f10e6a…`, the
+  commit in `hsflowd@2.1.26.sonic.1`. `0001-host_sflow_debian.patch`
+  (`sha256-UivgDeHU…`) and `0002-vpp-osindex-counter-sampling.patch`
+  (`sha256-yY19odDM…`) are byte-identical.
+- sflowtool: Make checks out `c953cfe`, matching `sflowtool@6.11.0.sonic.2`.
+- libpsample: Make checks out `e48fad2`, matching `libpsample@1.1.0.sonic.1`.
+
+Nothing automated keeps them aligned. A tag can move, and a patch edited in one
+copy silently makes Make and Bazel build different code. Add a test, in the
+consuming repository or in registry CI, that resolves the Make checkout
+reference, compares it with the selected `source.json` commit, and compares
+every patch hash and its order. Run it whenever either recipe changes. Report a
+deliberate difference in the PR together with its consumer; do not hide it.
+
+## Choose native rules or rules_foreign_cc
+
+The default is `rules_foreign_cc`, keeping the upstream build system. A
+maintained native `rules_cc` overlay is a reasonable alternative when it
+reproduces the baseline more faithfully or caches much better. Record the
+reason in the module README.
+
+| Package (registry) | Upstream build | Chosen rule | Reason |
+| --- | --- | --- | --- |
+| sflowtool (`6.11.0.sonic.2`) | `boot.sh` + autotools | `configure_make` | `configure` generates `config.h` |
+| libpsample (`1.1.0.sonic.1`) | CMake | `cmake` | CMake sets the SONAME and install layout |
+| hsflowd (`2.1.26.sonic.1`) | Plain Makefiles, Clang by default | Native `cc_binary` per daemon and module | Uses the shared GCC toolchain explicitly, caches each source file, and keeps the Debian recipe's `FEATURES="SONIC VPP"` defines in one `settings.bzl` |
+
+Whatever the choice, inspect the actual compiler command lines. Upstream
+recipes can force settings, as libpsample does with
+`set(CMAKE_BUILD_TYPE Debug)`. In the libpsample candidate, the SONiC
+toolchain's `-O2` and hardening flags still reached the compiler: its
+`DW_AT_producer` shows `-O2 -fstack-protector-strong`, and the library has the
+same `_chk` symbols as the Make package.
+
 ## Run the upstream build through Bazel
 
 Use the selected `rules_foreign_cc` version's `configure_make` or `make` rule as

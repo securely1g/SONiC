@@ -186,6 +186,100 @@ from source migration of its still-external producers.
   ownership and links aligned with the supported legacy image. Make overlapping
   paths and layer order intentional and reviewable.
 
+## Mirror the Make parent-image chain
+
+Use the Bazel image that matches the Make parent as `oci_image(base = ...)`, and
+use the same parent as the `apt_layer` base. In
+[buildimage #152](https://github.com/securely1g/sonic-buildimage/pull/152),
+`docker-sflow` uses `//dockers/docker-swss-layer-trixie`. That parent already
+supplies source-built `sflowmgrd`, `libswsscommon` and the SWSS Python
+interfaces, so the sFlow image adds only:
+
+| Layer | Contents |
+| --- | --- |
+| Owner runtime | `@hsflowd//:runtime`, `@sflowtool//:runtime`, `@libpsample//:runtime` through `sonic_layer` |
+| Debian delta | Locked `apt_layer(base = parent)` packages that the parent does not already satisfy |
+| Image files | Supervisor, critical-process and helper files, plus the edited init script |
+| Installation state | `installed_packages` records for the added owners and packages |
+
+Do not flatten the parent's contents into the child or rebuild a parent-owned
+component in the child. Doing so breaks layer sharing across the SWSS-family
+images and hides which image owns a library. A Make-built parent remains a
+migration gap under the runtime source-build rule. While it stays in place,
+child native code must link dynamically against the parent's project libraries
+(for example `libswsscommon.so.0`). A second Bazel-built copy can conflict with
+the parent's ABI. Check the loaded image to confirm which copy each ELF
+resolves.
+
+## Transform owner files with checked edits
+
+When a legacy Dockerfile edits a file installed by a component, transform the
+owner's declared source file in the image package and install the result at the
+same path in a later layer. In buildimage #152, the Dockerfile ran:
+
+```sh
+sed -ri '/^DAEMON_ARGS=""/c DAEMON_ARGS="-c /var/log/hsflowd.crash"' /etc/init.d/hsflowd
+```
+
+This edit matters: `sflowmgrd` starts hsflowd through `service hsflowd restart`,
+so the init script's arguments decide the crash-file path. The Bazel image uses
+`expand_template` over `@hsflowd//src/Linux:scripts/hsflowd.deb` and installs
+the result as `/etc/init.d/hsflowd` with mode `0755`. Its image check asserts
+that the owner script contains `DAEMON_ARGS=""` exactly once and that the
+installed bytes equal the expected replacement. The loaded-image test confirms
+that `-c /var/log/hsflowd.crash` reaches the daemon's arguments.
+
+| Approach | If the owner changes the line |
+| --- | --- |
+| Dockerfile `sed` | Changes nothing and reports no error |
+| Bare `expand_template` substring replacement | Changes nothing and reports no error, or replaces an unintended match |
+| Transform plus exact-count precondition and installed-bytes check | Fails with a clear message |
+
+Prefer making the build action itself fail on a missing or repeated match, using
+a small shared rule when several images need it. A check in a separate CI script
+is acceptable when it always runs for the image. Keep image deployment choices out
+of the owner's registry patches, because other consumers of the same owner do
+not share them.
+
+## Reproduce installation side effects in shared parents
+
+Debian maintainer scripts and triggers create files that package extraction
+alone does not. Shared parents (`docker-base-*`, `docker-config-engine-*`,
+`docker-swss-layer-*`) must reproduce the effects that their children rely on,
+using declared Bazel actions over the final layer contents:
+
+| Effect | Make image source | Bazel requirement |
+| --- | --- | --- |
+| `/etc/ld.so.cache` | `ldconfig` trigger after each library package | Regenerate it for the final library set, or record and test that every library loads through the default multiarch directories |
+| `/etc/ssl/certs/<hash>.0` links | `update-ca-certificates` / `c_rehash` | Generate the same hash links from the selected certificates |
+| Alternatives links | `update-alternatives` | Declare each required link explicitly |
+
+The buildimage #152 parity check against the sonic-net Make image found
+`/etc/ld.so.cache` with 65 entries inherited from the base, compared with 153
+in Make, and 296 missing `/etc/ssl/certs` hash links in the parent layers. The
+sFlow binaries still loaded, because Debian's multiarch directories are trusted
+by default, but the files differ from Make. Fix these effects in the parent that
+owns them, not separately in each child image.
+
+## Keep image BUILD files short
+
+A maintainer should be able to read the image's layers in its `BUILD.bazel`
+file. Buildimage #152 shows the preferred split:
+
+- A six-key policy dictionary in `BUILD.bazel`, with per-package required paths
+  in `dockers/docker-sflow/bazel/source_paths.json` and
+  `debug_source_paths.json`.
+- Visible runtime and debug `oci_image` targets with ordered `tars`.
+
+About 110 lines of the 303-line file are debug-image pieces that every image
+repeats: the debug `apt_layer`, the Vim alternatives link, the FIPS OpenSSH
+client and its symbols, the `_ssh` account layer, and the debug package-status
+TAR. The image also adds about 670 lines of image-specific checker scripts.
+Reference shared targets or small shared rules for the repeated debug pieces,
+and parameterize shared checkers with each image's path lists. Keep the
+runtime/debug `oci_image` targets and their layer order in the image
+`BUILD.bazel`. Do not hide them behind an all-purpose image macro.
+
 ## Register the producer and preserve the consumer
 
 Use the shared Make build/query/export bridge. Owners declare archive targets,
@@ -231,7 +325,10 @@ for a narrower task:
 2. **Selection and payload:** checked base and APT receipts; source/import
    provenance; intended package identities, dependency closure and collision
    decisions; legacy paths, bytes, modes, owners and links, including inherited
-   files and required installation state.
+   files and required installation state. The image's base matches its Make
+   parent, and no parent-owned component is rebuilt or copied in the child.
+   Shared parents reproduce `ld.so.cache`, certificate hash links and required
+   alternatives, or record each difference from the Make image.
 3. **Actual images and archives:** build and inspect both runtime/debug OCI
    outputs and the exported archives. Verify platform, labels, tags, ordered
    layers and exact runtime ancestry; compare archive and OCI payloads.
@@ -239,6 +336,8 @@ for a narrower task:
    commands in the resulting filesystem with declared dependencies. Add the
    required service checks. Fixture/structural success does not establish these
    results; installer construction, boot and forwarding are separate stages.
+   Each edit to an owner file has an exact precondition and an installed-result
+   check.
 5. **Debug correspondence:** verify matching runtime/symbol artifacts with
    applicable build IDs, debug links and debugger lookup. Record inherited or
    imported binaries without matching symbols as explicit coverage gaps.

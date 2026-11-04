@@ -439,6 +439,45 @@ The registry check enforces candidate and publication rules. The migration agent
 or babysitter preserves feature commits and updates consumers; the CI check does
 not rewrite branches or enforce the number of Git commits.
 
+## Check that new versions win selection
+
+Bazel's module resolution picks the highest requested version of each module.
+Text after `-` is a prerelease part, and it sorts below the plain release. Its
+dot-separated identifiers are compared one at a time. All-digit identifiers
+are compared numerically and sort below identifiers that contain letters;
+identifiers with letters are compared in ASCII order. A commit ID is just
+text to this comparison, so a newer commit is not a higher version, and a
+commit prefix made only of digits loses to any prefix containing a letter.
+The sFlow review found these live cases:
+
+| Versions in the same graph | Bazel order | Effect |
+| --- | --- | --- |
+| `sonic-build-infra@0.0.26-51c838da…` (buildimage #152 override) and `0.0.26-2cfc059c…` (registry #209) | `2cfc…` < `51c8…` | Without a root override, `51c838da` wins and the newer combined source is dropped. With #152's override, consumers that ask for `2cfc…` are silently moved back to `51c8…` |
+| `sonic-fips@0.0.3-d1a2c8f…` (buildimage master) and newest published `0.0.3-401a5d7…` | `401a…` < `d1a2…` | The newest published commit never wins; only `0.0.3-e910ec2…` (registry #197) sorts above `d1a2…` |
+| `sonic-swss-common@0.0.8-c7c6797…` (registry #161) and `0.0.8-43598143…` (registry #201) | `4359…` < `c7c6…` | The candidate that contains `c7c6797` sorts below it |
+| `tar.bzl@0.10.5-sonic.1` | below `0.10.5` | Any plain `0.10.5` request wins without an override. Use `0.10.5.sonic.1` |
+
+Before adding or replacing a commit-based candidate:
+
+1. List every published version and open candidate of the module with the same
+   `x.x.x`, plus the versions that current consumers request.
+2. If the new version does not sort above every version it replaces, increase
+   `x.x.x` (for example `0.0.27-<commit>`) instead of reusing the base.
+3. In a real consumer, run `bazel mod graph` (or inspect the generated
+   `MODULE.bazel.lock`) and record the selected version. When a root
+   `single_version_override` pins the module, update it together with the
+   candidate. A stale override silently downgrades other consumers.
+4. Do not publish separate candidates of one module that each carry only part
+   of the needed changes. Combine them into one candidate that contains every
+   landed prerequisite.
+
+Registry CI should fail when a new candidate sorts below a published version
+it replaces. It should also fail when a PR deletes or changes a published
+version directory: an earlier head (`8555644`) of registry #184 removed
+published `sonic-fips@0.0.3-401a5d7…` until a rebase restored it. If the
+selected registry CI lacks either guard, record the missing check and verify
+both rules by hand.
+
 ## Prove selection before extending the build machinery
 
 Try ordinary module resolution first. Verify the selected shared dependency,

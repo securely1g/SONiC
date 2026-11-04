@@ -128,6 +128,22 @@ For Docker-to-Bazel migration, put new or changed dependency source-build and ru
 
 Keep each dependency's build targets, packaging, tests and documentation with its owner. The container PR consumes those targets/versions and contains image composition, Make handoff and image validation. Reuse existing compatible dependency targets without creating unnecessary producer PRs. Link actual prerequisites and follow the existing registry and dependency-readiness rules. Splitting the work does not waive the runtime source-build requirement or require new DEB outputs when runtime/debug TARs already satisfy the consumer; adding a new DEB package definition still requires explicit approval.
 
+### Mirror the Make parent-image chain
+
+Build each image on the Bazel image that matches its Make parent. For example, `docker-sflow` extends `docker-swss-layer-trixie`, which extends `docker-config-engine-trixie`. The child image adds only its own owners' runtime TARs, locked APT packages selected against that parent, installation state and image files. Components that a parent already owns, such as `sflowmgrd` and `libswsscommon` in the SWSS layer, must not be rebuilt or copied again in the child. If a parent is still built by Make, link child native code against the parent's shared project libraries; do not bundle a second build of those libraries. Follow [the parent-image chain](references/docker-image-template.md#mirror-the-make-parent-image-chain).
+
+### Transform owner files inside the image package
+
+When the legacy Dockerfile edits a file that a component installs, keep that edit in the image package. For example, `docker-sflow` changes `DAEMON_ARGS=""` in hsflowd's `/etc/init.d/hsflowd`. Transform the owner's declared source file with a Bazel action, place the result at the same installed path in a later layer, and fail when the expected original text is missing or appears more than once. Check the installed result in image tests. Do not move image deployment choices into the owner's registry patches, and do not keep a hand-copied version of the owner's whole file. Follow [owner-file edits](references/docker-image-template.md#transform-owner-files-with-checked-edits).
+
+### Reproduce required installation side effects in base images
+
+Extracting packages does not run their maintainer scripts. Base and shared parent images must reproduce the installed state that later images rely on with declared Bazel actions, then compare it with the Make image. Important examples are the dynamic loader cache (`/etc/ld.so.cache`, normally refreshed by `ldconfig`) and the OpenSSL hash links in `/etc/ssl/certs` (normally created by `update-ca-certificates`/`c_rehash`). Do not fabricate package records to hide a missing effect. Follow [installation side effects](references/docker-image-template.md#reproduce-installation-side-effects-in-shared-parents).
+
+### Keep image BUILD files focused on the image
+
+Keep the runtime and debug `oci_image` targets and their ordered layers visible in `dockers/docker-*/BUILD.bazel`. Keep the image policy dictionary small, and put per-package path lists in files under `dockers/docker-*/bazel/`. Put debug-image pieces that are the same for every image, and image checker scripts, in shared targets that each image references. Follow [image BUILD size](references/docker-image-template.md#keep-image-build-files-short).
+
 ## Reuse upstream components for DEB-to-OCI assembly
 
 When adding existing Debian packages to OCI images, use the following upstream components for their applicable roles:
@@ -151,6 +167,12 @@ For an individual component migration, external dependencies may be pinned APT p
 ### Retain upstream configure/Make for external source packages
 
 When migrating an external source package while retaining its build system, use declared `rules_foreign_cc` actions for its upstream configure/Make build and stage the installed files into runtime and matching debug TARs. Follow [external source packages](references/external-source-packages.md) for source preparation, declared tools and dependencies, cache boundaries, and validation. Reuse Debian-maintained patches and copyright from the pinned Debian source archive when that is the SONiC baseline; do not duplicate them in registry overlays. This source-build path does not produce DEBs or require a separate DEB-packaging module. Preserve the existing central-registry check, dependency ownership and approval rule for new DEB package definitions.
+
+Use `rules_foreign_cc` when the upstream configure or CMake step generates configuration or sets library names, as for sflowtool and libpsample. A maintained native `rules_cc` overlay is acceptable when the upstream build is a plain Makefile whose compiler settings, defines and module list can be written directly, and per-file caching helps, as for hsflowd. Record the choice in the module README. Either way, keep the SONiC Make baseline's source, patches, features and flags.
+
+### Keep Make and registry sources in lockstep
+
+While Make still builds the same external package from `src/<package>/`, Make and the registry must build the same source. The tag or short SHA that the Make recipe checks out must resolve to the full commit in `source.json`. Every patch that Make applies must have the same SHA-256 as the registry patch, in the same order. Add an automated check for this in the consuming repository or the registry; manual comparison is not enough. Follow [Make and registry lockstep](references/external-source-packages.md#keep-make-and-registry-sources-in-lockstep).
 
 ## Keep reusable Rust libraries with their owners
 
@@ -428,6 +450,12 @@ Before adding or updating registry module versions, read and follow the [SONiC r
 
 Keep one current unreleased candidate per module across the affected open PR stack. A version is published when it is on the maintained registry branch or has a verified explicit release independent of the draft stack; an open PR, unmerged stacked base or successful CI does not publish it. Inventory other open registrations of that module. Preserve published source and build inputs; documentation and standalone test maintenance may update the same version only within the [published-entry maintenance boundary](references/shared-dependency-workflow.md#maintain-published-entries-without-changing-build-inputs). Recheck publication before draft cleanup, then update affected consumers' declared and resolved versions and temporary source pins together. Use [the draft-version workflow](references/shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module) for coordinated edits, registry CI coverage, and reassessment after a merge.
 
+### Make new versions win Bazel selection
+
+Bazel treats the text after `-` in a version as dot-separated prerelease identifiers. All-digit identifiers are compared numerically and sort below identifiers that contain letters; identifiers with letters are compared in ASCII order. Commit dates play no part. For SONiC source modules named `x.x.x-<commit>`, a newer commit with the same `x.x.x` can therefore sort lower and lose. For example, `sonic-build-infra@0.0.26-2cfc059c…` sorts below `0.0.26-51c838da…`, so any graph containing both selects `51c838da`. Before registering a commit-based version, compare it with every published version and open candidate of that module. If it does not sort above the version it replaces, increase `x.x.x` instead. For third-party modules, use `.sonic.N`, never `-sonic.N`. Inspect `bazel mod graph` in a real consumer to confirm the selection. Follow [version selection checks](references/shared-dependency-workflow.md#check-that-new-versions-win-selection).
+
+Never delete a published version directory or change its protected inputs, even when replacing a candidate of the same module. Only the documented maintenance files may change. For example, an earlier head (`8555644`) of registry #184 removed published `sonic-fips@0.0.3-401a5d7…`. Registry CI and reviewers must check the PR's diff against the maintained branch for deleted published entries.
+
 ### Carry published patches and tests into new versions
 
 New module versions must carry forward all patches and tests from the previous published version before adding their own changes. Use that version's current contents on the maintained registry branch, not a stale PR snapshot. Preserve supporting overlays, fixtures, integration modules, CI test selections and supported architecture coverage. Keep unchanged patches unchanged and document necessary adaptations. Remove a patch only under the [existing upstream-verification rule](#verify-existing-patches-before-switching-upstream), retaining its applicable regression coverage. Follow the [inheritance checks and example](references/shared-dependency-workflow.md#carry-forward-published-patches-and-tests) to compare inventories and verify that inherited tests run against the new version.
@@ -441,6 +469,8 @@ Every registry version-update PR must link a downloadable, complete patch from t
 Assess dependency readiness against the PR's changes and actual requirements. **Unchanged, unrelated dependencies inherited from maintained `master` or `main` must not keep a PR in Draft.** Compare the current diff and selected inputs with that baseline and record why an inherited dependency is unrelated. A repository-wide CI job running on every PR does not by itself make its dependencies relevant to the change. See [readiness scope](references/pr-merge-readiness.md#scope-readiness-to-the-proposed-change).
 
 Keep a PR in Draft when a dependency it introduces, changes, or needs for its proposed behavior or validation is unlanded or its provenance cannot be verified. Unmerged stacked prerequisites remain in scope. This applies to direct pins, resolved registry sources, submodules, overrides, external CI checkouts and consumed artifacts. A merged prerequisite PR or an identical tree does not make its former PR-head commit a landed dependency. The PR's own implementation and its test checkout are not external dependencies. Third-party releases retain their existing version policy.
+
+Squash and rebase merges create a new commit. After a prerequisite merges that way, update every consumer pin from the old PR-head commit to the commit that landed, and check each pin mechanically, not by tree comparison. See [landed-commit checks](references/pr-merge-readiness.md#check-landed-commits-mechanically).
 
 Every registry PR must also target the registry's maintained `master` or `main` without a stacked base before becoming Ready for review. Reassess dependencies on creation or update, base changes, prerequisite and source merges, and every authorized babysitter cycle, including quiet PRs. Follow [PR draft and review readiness](references/pr-merge-readiness.md) for exact revision checks, coherent pin refreshes, temporary CI branch-filter cleanup, Draft/Ready transitions and readback. Remove obsolete readiness labels when applying this rule and preserve other labels. Keep reasons in triage evidence. Respect explicit user draft holds; Ready for review does not merge a PR, enable auto-merge or replace required CI and merge checks.
 
