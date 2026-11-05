@@ -389,7 +389,7 @@ Requests and locks are delivery inputs owned together. This specifies file sets/
 
 After registry changes verify actual inputs/recipes/resolution/consumers; equal version strings are insufficient. Synchronize revisions/integrity for deps/patches/overrides and record root/independent graphs.
 
-buildimage ignores MODULE.bazel.lock/Cargo.Bazel.lock; CI generates the former with lockfile_mode=update as evidence. Preserve that policy. Resolution locks do not replace APT/Cargo/Go/pip locks. Independent repositories follow their own ignore/docs/consumer contract and retain tracked locks where required. from_cargo consumes Cargo.lock without adding unused Cargo.Bazel.lock.
+Do not commit MODULE.bazel.lock in buildimage or independent repositories governed by this skill. Ignore it, generate it in CI with lockfile_mode=update, and retain it as validation evidence under the [Bazel resolution policy](../SKILL.md#keep-generated-bazel-lockfiles-out-of-git). Keep canonical package dependency locks, including applicable APT, Cargo, Go and pip locks, tracked in their owning repositories; generated Bazel resolution locks do not replace them. Applicable rules_rust/crate_universe consumers generate and ignore Cargo.Bazel.lock during preparation. from_cargo consumes tracked Cargo.lock without adding Cargo.Bazel.lock.
 
 Deliver declarations/locks/exports/consumers together with owner/component mapping. Keep temporary logs/graphs in task evidence, production locks in consumer repositories. Record tools/commands/before-after identities/impact/results, verify actual new-lock use and stable rebuilds. Missing transitives, mismatches or unverified required platforms retain pending-verification status with concrete scope/blockers.
 

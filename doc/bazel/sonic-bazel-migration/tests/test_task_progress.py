@@ -204,6 +204,39 @@ class TaskProgressCLI(unittest.TestCase):
         self.completion(verification, success=False)
         self.assertEqual(self.tasks.read_bytes(), before)
 
+    def test_completion_rejects_unplanned_mandatory_or_unclassified_checks(self):
+        # Phase handoff requires matching mandatory sets; only explicit
+        # required=false checks may remain outside implementation acceptance.
+        for state in ("completed", "reused"):
+            for result in ("PASS", "FAIL", "NOT_RUN", "BLOCKED"):
+                for required in (True, None):
+                    with self.subTest(state=state, result=result, required=required):
+                        _, verification = self.evidence()
+                        value = json.loads(verification.read_text())
+                        extra = copy.deepcopy(value["checks"][0])
+                        extra.update(id="installed_runtime", status=result,
+                                     exit_code=0 if result == "PASS" else 1)
+                        if required is None:
+                            extra.pop("required")
+                        else:
+                            extra["required"] = required
+                        value["checks"].append(extra)
+                        self.write(verification, value)
+                        before = self.tasks.read_bytes()
+                        self.completion(verification, status=state, success=False)
+                        self.assertEqual(self.tasks.read_bytes(), before)
+
+    def test_completion_rejects_mandatory_check_marked_optional(self):
+        _, verification = self.evidence()
+        value = json.loads(verification.read_text())
+        value["checks"][0]["required"] = False
+        self.write(verification, value)
+        for state in ("completed", "reused"):
+            with self.subTest(state=state):
+                before = self.tasks.read_bytes()
+                self.completion(verification, status=state, success=False)
+                self.assertEqual(self.tasks.read_bytes(), before)
+
     def test_completion_rejects_another_tasks_verification(self):
         _, verification = self.evidence()
         value = json.loads(verification.read_text())
@@ -241,8 +274,10 @@ class TaskProgressCLI(unittest.TestCase):
              "command": ["optional-debug"], "log": "evidence/diagnostic.log"},
         ]
         _, verification = self.evidence(checks=checks)
-        self.completion(verification)
-        self.assertEqual(self.tasks_by_id()["SERVICE_A"]["status"], "completed")
+        for state in ("completed", "reused"):
+            with self.subTest(state=state):
+                self.completion(verification, status=state)
+                self.assertEqual(self.tasks_by_id()["SERVICE_A"]["status"], state)
 
     def test_render_uses_saved_progress_and_dependency_layers(self):
         value = {"tasks": [task("SERVICE_B", ["SERVICE_A"], 1, "in_progress"),

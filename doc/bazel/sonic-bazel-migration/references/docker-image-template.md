@@ -69,6 +69,10 @@ tied to the selected TAR/source graph. Optional DEB production or package-only
 CI must not become an OCI merge gate. Preserve the legacy Make package path and
 its CI; this rule concerns the new TAR path.
 
+Apply the same boundary to the [equivalence comparison set](make-bazel-equivalence.md#when-to-run-it):
+gate affected runtime/debug archives and approved DEBs explicitly in scope;
+report unrelated discovered pairs as diagnostics.
+
 ## BUILD file sections
 
 | Section | Owner declaration and shared interface |

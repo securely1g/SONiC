@@ -58,7 +58,9 @@ native Bazel language rules and declared actions. Do not wrap configure/Make/CMa
 dpkg-buildpackage in rules_foreign_cc, genrule, shell or a custom rule. Use controlled target-toolchain
 probes during migration, then native templates and platform/feature settings for routine builds.
 The kernel's specialized pipeline retains its documented exception; another specialized pipeline
-requires approval for that concrete approach. Tool/runtime declaration and hermeticity still apply.
+requires explicit user approval for that concrete approach. Tool/runtime declaration and hermeticity still apply.
+Migration-time controlled Autoconf probing is an analysis procedure, separate from these
+production build-system exceptions; it does not authorize configure in regular builds.
 
 Prefer maintained upstream BCR rulesets and toolchains when a compatible one provides the tool and satisfies the analyzed version/feature contract (as tar.bzl already does for archives); then compatible existing project/shared rules, then pinned source-built tools. Record the BCR modules/versions checked and why each earlier option fails the required version/feature contract before falling back. Apply the [custom-module approval rule](#check-bazel-central-registry-before-custom-modules) when developing an alternative to a dependency available in BCR.
 Declared fixed prebuilt tools remain usable under this selection order. Tools, interpreters, execution libraries, plugins,
@@ -381,11 +383,11 @@ Use existing functional tests where practical, and add focused regression tests 
 
 While Make still builds an image or DEB, its Bazel replacement must ship the same files. Use the equivalence checker from [sonic-net/sonic-buildimage#28005](https://github.com/sonic-net/sonic-buildimage/pull/28005), `tools/bazel/test_equivalence.sh`. It builds Make's artifacts from the same clean checkout with the Bazel path disabled, then pairs each Bazel image archive and approved `sonic_deb` package with Make's file of the same name. It compares plain files byte for byte, symlinks by target and ELF files with `elfcompare`, including debug files paired by build ID. Any difference fails the run unless a rule in `tools/bazel/equivalence_checker/rules.py` names it and states the cause.
 
-- Run it in `sonic-buildimage` for every PR that adds or changes Bazel image or DEB outputs or their inputs, covering both runtime and `-dbg` archives. Component and registry PRs that deliver TARs are compared through the image PR that selects them.
+- Run it in `sonic-buildimage` for every PR that adds or changes Bazel image or DEB outputs or their inputs. Define the required comparison set before execution: affected runtime and `-dbg` archives, plus approved DEBs explicitly in scope. Report other discovered pairs as diagnostics; optional DEBs do not gate a TAR-consuming OCI PR. Component and registry PRs that deliver TARs are compared through the image PR that selects them.
 - Build the same source revisions and patches on both sides. Resolve a mismatch between Make's checkout and Bazel's selected source before comparing.
 - Prefer fixing a difference to accepting it. A rule names the affected paths, and for package version drift both versions, so that a new difference still fails. Do not add a DEB package definition only to feed the checker.
 - Keep the layout, permission, installed-runtime, service and debug checks; the checker compares contents, not modes, owners or behavior.
-- Require a run on the PR's current head with no unaccepted differences before merge or reporting the migration complete. Missing, pending, failed or stale equivalence results alone must not prevent Ready for review or return a PR to Draft. Record the summary and keep `target/equivalence-report.json` with the validation evidence.
+- Require a run on the PR's current head with every required pair present and no unaccepted differences in that set before merge or reporting the migration complete. Retain diagnostic failures separately. Missing, pending, failed or stale equivalence results alone must not prevent Ready for review or return a PR to Draft. Record the summary and keep `target/equivalence-report.json` with the validation evidence. Follow the [scope-selection procedure](references/make-bazel-equivalence.md#run-it) before using the upstream all-pairs command as a merge gate.
 
 If `sonic-buildimage` lacks the checker, port it from that PR in a separate prerequisite PR instead of writing another comparator. Follow [the equivalence procedure](references/make-bazel-equivalence.md) for commands, rule examples, the docker-sysmgr example and porting notes.
 

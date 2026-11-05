@@ -84,7 +84,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Inspect downloaded artifacts as consumers receive them.
 - Before publishing or updating a build-infra or registry PR, verify one logical commit per independent fix or feature relative to its actual base. A single-feature PR normally has one own commit; fold corrections into that feature's commit. Preserve separate commits in a user-authorized consolidation, even when they update one unpublished module version. Follow the [logical-commit rule](../SKILL.md#keep-one-logical-commit-per-fix-or-feature). After a split, verify independent CI selection and reconcile source/consumer descriptions and Project dependency links for each feature.
 - Verify a fresh checkout without `MODULE.bazel.lock` builds for each declared configuration, preserves canonical package locks and their dependency selections, produces the ignored Bazel lock as retained CI evidence, and leaves tracked files unchanged. Synchronize workflows, collectors, and documented commands.
-- For Rust consumers, start without `Cargo.Bazel.lock`, prepare before dependency evaluation, and validate native AMD64/ARM64 plus downstream owner/consumer and image integration. Verify the actual image checkout is prepared after pristine-source verification; report any installer boundary that remains unvalidated.
+- For applicable `rules_rust/crate_universe` consumers, start without `Cargo.Bazel.lock` and generate it before dependency evaluation under the [Rust preparation policy](../SKILL.md#generate-rust-bazel-metadata-during-build-preparation). `rules_rs/from_cargo` consumes tracked `Cargo.lock` directly without adding `Cargo.Bazel.lock`. Validate the declared execution/target architectures and required downstream consumers. When image integration is in scope, verify preparation in the actual image checkout after pristine-source verification and validate the image/installer boundaries required by that task.
 
 ### Repository auto-merge
 
@@ -155,7 +155,7 @@ Apply this section to native ELF artifacts that require source-level debugging.
 | Required outputs | Explicit target labels and package formats |
 | Migration boundary | Source compilation, wheel/package production, image assembly or binary import; remaining producers |
 | Validation | Tests, runtime/package checks, and service requirements |
-| Make equivalence | Tested PR head, checker revision, compared pairs, summary with accepted-rule counts and no unaccepted differences, and report location |
+| Make equivalence | Tested PR head, checker revision, required and diagnostic pairs, scoped gate result, accepted-rule counts, and report location; every required pair present with no unaccepted differences |
 | Analysis | Analyzer jobs and source-coverage result |
 | Auto-merge | Repository setting, target branch, required checks, bypass permissions, and PR eligibility evidence |
 | Artifacts | Locations, checksums, and matching debug information |
@@ -173,5 +173,5 @@ Apply this section to native ELF artifacts that require source-level debugging.
 - [ ] Use a shared APT source and lock for payloads, target libraries and execution tools; preserve existing package pins.
 - [ ] Keep the old public rule contract at each PR boundary; test same-PR producer/consumer changes together.
 - [ ] Run [contract-based acceptance](review-port.md), preserve exact inputs/artifacts and record PASS/FAIL/NOT_RUN/BLOCKED by configuration.
-- [ ] Before merge or migration completion, pass the [Make equivalence check](make-bazel-equivalence.md) on the current PR head for delivered image archives and approved DEBs, with every accepted difference named in `rules.py`. Missing, pending, failed or stale equivalence results alone do not block Ready for review or return a PR to Draft.
+- [ ] Before merge or migration completion, pass the [Make equivalence check](make-bazel-equivalence.md) on the current PR head for every affected runtime/debug image archive and approved DEB explicitly in scope, with every accepted difference named in `rules.py`. Record the required set before execution and report unrelated pairs as diagnostics. Missing, pending, failed or stale equivalence results alone do not block Ready for review or return a PR to Draft.
 - [ ] Keep local worktree/base-branch setup out of the technical component instructions; use the original workspace and PR policies where applicable.
