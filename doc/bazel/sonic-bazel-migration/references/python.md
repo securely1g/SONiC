@@ -1,6 +1,6 @@
 # Python sources, wheels and installation TARs
 
-Read the [shared contract](common-contract.md). This page covers producers; Docker/rootfs resolve complete runtime versions under [Python runtime locking](dependency-locking.md#python-runtime-locks-and-requires-dist). A package's wheel, installation TAR and runtime metadata must derive from one declaration.
+Read the [shared contract](common-contract.md). Python distributions follow owner source -> wheel -> shared `wheel_layer` installation TAR -> OCI/rootfs. Producers own wheel contents and metadata; Docker/rootfs resolve complete runtime versions under [Python runtime locking](dependency-locking.md#python-runtime-locks-and-requires-dist). The installation TAR and runtime metadata derive from the selected wheel, without a parallel direct-source installation path.
 
 ## 1. Obtain inputs from Make analysis
 
@@ -39,15 +39,14 @@ py_library(
 source_packages()
 ```
 
-Python deps supply source modules for build/tests; requires below declares distribution dependencies. service_wheel contains service only; common is a separate distribution or install target.
+Python deps supply source modules for build/tests; requires below declares distribution dependencies. service_wheel contains service only; common is a separate distribution with its own wheel.
 
-## 3. Generate distribution and installation from shared metadata
+## 3. Build owner wheels and install them through the shared rule
 
 In root metadata.bzl:
 
 ```starlark
 load("@rules_python//python:packaging.bzl", "py_package", "py_wheel")
-load("@sonic_build_infra//python:site_packages.bzl", "site_packages")
 
 COMMON = dict(
     distribution = "example-common",
@@ -69,61 +68,66 @@ SERVICE = dict(
 def source_packages():
     py_package(name = "common_contents", packages = ["example_common"], deps = [":common_lib"])
     py_package(name = "service_contents", packages = ["example_service"], deps = [":service_lib"])
-    py_wheel(name = "common_wheel", deps = [":common_contents"], **COMMON)
-    py_wheel(name = "service_wheel", deps = [":service_contents"], **SERVICE)
-    site_packages(
-        name = "common_install",
-        files = {"example_common/__init__.py": "example_common/__init__.py"},
-        site_packages = "/usr/local/lib/python3.13/dist-packages",
-        scripts = "/usr/local/bin",
-        headers = "/usr/local/include",
-        data_prefix = "/usr/local",
-        interpreter = "/usr/bin/python3",
+    py_wheel(
+        name = "common_wheel",
+        deps = [":common_contents"],
         visibility = ["//visibility:public"],
         **COMMON
     )
-    site_packages(
-        name = "service_install",
-        files = {
-            "example_service/__init__.py": "example_service/__init__.py",
-            "example_service/cli.py": "example_service/cli.py",
-            "example_service/default.json": "example_service/default.json",
-        },
-        site_packages = "/usr/local/lib/python3.13/dist-packages",
-        scripts = "/usr/local/bin",
-        headers = "/usr/local/include",
-        data_prefix = "/usr/local",
-        interpreter = "/usr/bin/python3",
-        runtime_deps = [":common_install"],
+    py_wheel(
+        name = "service_wheel",
+        deps = [":service_contents"],
         visibility = ["//visibility:public"],
         **SERVICE
     )
 ```
 
-files maps single-file labels to package-relative paths. Use actual generated-file targets for generated sources/extensions. Both branches generate their required metadata from shared identity/dependency declarations. For nested Bazel packages, py_package filters by short paths including Bazel directories: native/native_example uses packages=["native.native_example"], then py_wheel strip_path_prefixes=["native"] retains native_example as import root. Check selected sources/resources/extensions before wheel paths. Installation files map directly to target-relative layout.
+Use actual generated-file targets for generated sources/extensions. For nested Bazel packages, py_package filters by short paths including Bazel directories: native/native_example uses packages=["native.native_example"], then py_wheel strip_path_prefixes=["native"] retains native_example as import root. Check selected sources/resources/extensions and wheel paths against the original package contract.
 
-site_packages defaults to this package's installation TAR only. PythonRuntimeInfo separately propagates source identities, metadata and transitive TARs. service_install.runtime_deps carries common's identity to assembly without duplicating common files in service's TAR. The rule generates entry scripts, dist-info and RECORD; shebang uses the declared target interpreter.
+After generating and checking the runtime lock, register its `example_runtime_pip` hub as in the [locking example](dependency-locking.md#pip-runtime-lock-generation-example). A runtime/BUILD.bazel in this illustrative module installs both owner wheels and the complete locked external closure:
 
-Build both branches. Check service-only wheel contents and separate common production; compare Requires-Dist, Requires-Python, extras and entry points.
+```starlark
+load("@example_runtime_pip//:requirements.bzl", "all_whl_requirements")
+load("@sonic_build_infra//python:wheel_layer.bzl", "wheel_layer")
+
+wheel_layer(
+    name = "installed_python",
+    wheels = ["//:common_wheel", "//:service_wheel"] + all_whl_requirements,
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
+    scripts = "/usr/local/bin",
+    headers = "/usr/local/include",
+    data_prefix = "/usr/local",
+    interpreter = "/usr/bin/python3",
+    visibility = ["//visibility:public"],
+)
+```
+
+Use the actual consumer's interpreter and installation scheme. The shared installer reads wheel metadata, places purelib/platlib and .data contents, generates entry scripts and installed RECORD, and emits a TAR for OCI/rootfs. It does not resolve dependencies, download them, execute package code or compile bytecode. The example's wheel list must include the locked external requirements for the selected `example-service[metrics]` entry. Do not recreate installation with `site_packages`, `source_package_install`, ad hoc copies or custom wheel extraction.
+
+The verified `wheel_layer` interface returns its TAR through DefaultInfo; it does not provide PythonRuntimeInfo or accept runtime_deps. Metadata export and lock checking must use a supported shared wheel-aware interface, as described below. This combined TAR requires the checker to classify distributions by the selected wheels' source or external origin. The locking example keeps separate owner/external wheel layers for checks that classify whole TARs. A successful wheel_layer build alone does not prove runtime closure or lock provenance.
 
 ## 4. Native extensions and generated files
 
 For SWIG/protoc/Cython backend inputs, perform [generation](code-generation.md) first and feed native language rules. C/C++ extensions use target-platform Python headers and native libraries; see SWIG examples for linkshared.
 
-Wheel and installation TAR share extension files and metadata. For CPython 3.13 Linux, use python_tag/abi cp313 and a target-CPU platform such as linux_x86_64 or linux_aarch64. Use manylinux only when its compatibility requirements are met. Pure Python uses py3/none/any. CPU comes from platforms; ABI comes from the target interpreter. These are illustrative, not universal tags.
+For a wheel-packaged extension, the installation TAR comes from that wheel's extension files and metadata. For CPython 3.13 Linux, use python_tag/abi cp313 and a target-CPU platform such as linux_x86_64 or linux_aarch64. Use manylinux only when its compatibility requirements are met. Pure Python uses py3/none/any. CPU comes from platforms; ABI comes from the target interpreter. These are illustrative, not universal tags.
 
-Place extensions in py_library.data, select through the same package's py_package and map installation files to the same Python package. Check Root-Is-Purelib/tags against actual extension identity. Install dynamic dependencies through the runtime closure; generation tools/execution libraries stay outside it.
+Place extensions in py_library.data and select through the same package's py_package. Check Root-Is-Purelib/tags against actual extension identity and the installed package path. Install dynamic dependencies through the runtime closure; generation tools/execution libraries stay outside it.
+
+Existing native/generated binding outputs already exposed as runtime TARs, such as SWIG or protobuf/native bundles, do not require an unrelated wheel conversion. Preserve their build, metadata, ABI and installed-consumer checks. Apply the wheel route when Python distribution packaging is the work in scope; loose scripts/assets remain governed by their installation contract.
 
 ## 5. Handoff to assembly resolution and consumption
 
-Collect the complete source closure from service_install's PythonRuntimeInfo. python_runtime_plan declares entry example-service[metrics], target environment and index. Generate and commit the runtime lock; checked_python_runtime validates it and provides source TARs plus locked wheel installation TARs. Follow the complete [runtime lock example](dependency-locking.md#pip-runtime-lock-generation-example) for actions, arguments and initial locking. Update affected runtime locks when sources or Requires-Dist change; normal builds read production locks only.
+Collect the complete owner-wheel closure and its METADATA, including source identities, versions, Requires-Python/Dist, extras and markers. Resolve the entry example-service[metrics] for the target environment and index; keep owner distributions bound to their source-built wheels instead of resolving substitutes from PyPI. Generate and commit the runtime lock and provenance under the task's publishing authorization. Follow the [runtime lock workflow](dependency-locking.md#pip-runtime-lock-generation-example) for owner inputs, updates and checks. Refresh affected locks when source metadata or requirements change; normal builds read and check production locks only.
+
+Before using python_runtime_plan/checked_python_runtime with wheels, verify that the selected shared implementation accepts wheel-derived metadata and installation TARs. Their direct-source PythonRuntimeInfo contract cannot be assumed to work with wheel_layer. Implement any missing reusable metadata/check adapter in sonic-build-infra and integrate it before claiming complete runtime validation; do not run a second direct-source installation just to obtain that provider. OCI/rootfs consume the checked wheel-derived installation TARs and the remaining native runtime closure.
 
 ## 6. Step verification and delivery
 
 ```sh
-bazel build //:common_wheel //:service_wheel //:common_install //:service_install
-bazel cquery --output=files //:service_install
-bazel aquery 'deps(//:service_install)' --output=textproto
+bazel build //:common_wheel //:service_wheel //runtime:installed_python
+bazel cquery --output=files //runtime:installed_python
+bazel aquery 'deps(//runtime:installed_python)' --output=textproto
 ```
 
 Replace labels for the actual component package, using one platform/feature configuration. Check:
@@ -131,10 +135,10 @@ Replace labels for the actual component package, using one platform/feature conf
 | Output | Observation |
 | --- | --- |
 | Wheel | Files, resources, METADATA, WHEEL, RECORD, entry_points; own contents separate from runtime requirements |
-| Installation TAR | Paths, modes, shebang, dist-info, installed RECORD; source installation reads files directly |
-| Runtime metadata | Entry collects both service/common producers, versions, dependencies and TARs |
+| Installation TAR | Paths, modes, shebang, dist-info, installed RECORD; WheelLayer action consumes the selected owner wheels and locked external wheels |
+| Runtime metadata | Entry retains both service/common source producers, wheel identities, versions, dependencies and resulting TARs |
 | Installed copy | Import both packages in target interpreter, read resources, run example-service, query distribution metadata |
 | Native extension | ELF architecture, SOABI, initialization symbol, NEEDED and installed invocation |
 | Runtime lock consumer | Successful update/check, unchanged normal-build lock, stale detection for source dependency/constraint changes |
 
-Execute installed copies in the declared matching runtime. Report cross builds and target execution separately.
+Retain and run applicable upstream tests as well as installed-payload tests; a source-tree import test does not verify the installed wheel. Compare the installed file/resource selection with the original packaging inputs, including entry points and licenses. Execute installed copies in the declared matching runtime. Report cross builds and target execution separately.

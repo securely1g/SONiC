@@ -1,6 +1,6 @@
 # Implement components from analysis
 
-Read the entire [shared contract](common-contract.md), then applicable sections here and [infrastructure](infrastructure.md). Inputs are reviewed analysis.json/analysis.md. Default outputs are native builds, OCI-consumable TARs, metadata and consumer interfaces. Implement final DEBs only when explicitly requested under the [delivery boundary](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci).
+Read the entire [shared contract](common-contract.md), then applicable sections here and [infrastructure](infrastructure.md). Inputs are reviewed analysis.json/analysis.md. Default outputs are native builds, runtime TARs or source-built Python wheels, metadata and consumer interfaces. Shared wheel installation produces the TARs consumed by OCI/rootfs. Implement final DEBs only when explicitly requested under the [delivery boundary](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci).
 
 Apply [native build/tool constraints](../SKILL.md#use-native-bazel-actions-and-declared-tools) and decide [source/build ownership](register-bazel-module.md#1-determine-source-and-build-ownership) before coding. Distinguish buildimage component directories, independent source repositories, registry and shared infrastructure. Record implementation ownership separately from independent-module necessity.
 
@@ -59,7 +59,7 @@ Read concrete declarations/examples for [C/C++](native-cc.md), [language routes]
 | C/C++ | Complete per-target sources/macros/include categories/order/standards/optimization/security and ordered linking; native rules and real CcInfo/shared interfaces; explicit generator actions |
 | Go/CGo | Actual SDK/mod/sum/vendor patches/tags/generation/-X; actual rules_go/Gazelle; CGo follows native interfaces and must not be hidden by pure mode |
 | Rust | Selected rules_rs/shared graph, versions/features/trait ownership/locks; build.rs/proc-macros exec, native libraries target; inspect actual rule attributes |
-| Python/wheel | Patched package/resources/entry/metadata contract, library/wheel/install targets, target interpreter/ABI; shared source contents/metadata; pinned third-party wheel installation uses verified wheel_layer |
+| Python/wheel | Patched package/resources/entry/metadata contract, owner library/wheel targets and target interpreter/ABI; shared wheel_layer installs source-built and pinned external wheels into TARs |
 | Prebuilt | Preserve URL/version/architecture/checksum/contents/purpose and original identity; do not report as source rebuild; new DEBs use sonic_deb |
 | Linux kernel | Sources/config merge order, architecture/cross tools/host generators, vmlinux/images/modules/headers, release/signing/compression; verify shared capability before pipelines, without copying unverified macros |
 
@@ -94,15 +94,15 @@ Use [generation](code-generation.md) for Thrift/protoc/SWIG and actual Flex/Biso
 
 ## Installation TARs and consumer handoff
 
-Declare native targets, contents, identity and consumers under [installation](install-interfaces.md). Source Python wheel/install targets share contents/metadata; source installation does not unpack built wheels. Preserve separate pinned-third-party installation paths.
+Declare native targets, contents, identity and consumers under [installation](install-interfaces.md). Python owners build wheels containing their payload and metadata; shared wheel_layer installs those exact wheels into TARs. Resolve and validate the complete source/external runtime closure under the checked-in environment lock.
 
-Generate runtime/development/tool/resource/symbol layouts from original rules. Implement configuration/licenses/entries/modes/links and applicable accounts/services. Default to installation TARs, matching symbols and image metadata, without sonic_deb, DEB exporters/tests or Make DEB bridges. Read [DEB rules](build-deb-with-sonic-deb.md) only when explicitly requested. ABI/Debian versions are separate from registry versions.
+Generate runtime/development/tool/resource/symbol layouts from original rules. Implement configuration/licenses/entries/modes/links and applicable accounts/services. Use installation TARs and matching symbols for native components, and the wheel installation path for Python distributions, with image metadata and without sonic_deb, DEB exporters/tests or Make DEB bridges. Read [DEB rules](build-deb-with-sonic-deb.md) only when explicitly requested. ABI/Debian versions are separate from registry versions.
 
 List public targets/real consumers separately for native libraries/programs, install layout, runtime/symbol TARs, metadata and requested DEBs. Preserve existing TAR/image interfaces across versions; new DEBs reuse them. OCI consumes runtime TARs; DEBs consume the same data layout. Runtime TARs independently cover paths/types/ownership/modes/links/resources/runtime closure. Runfiles do not replace installation. Preserve loader/interpreter search paths and pair symbols by build-id.
 
 Producers own authoritative versions/dependencies/artifact relationships. Derive fields from recipes and actual payloads. Retain existing metadata-generation/TAR-validation capability; do not replace it with static copies. Images consume producer interfaces and implement account/service/configuration behavior beyond data extraction.
 
-Where Make integration is explicitly requested, preserve names/paths through explicit labels, cquery outputs and exporters. TAR/OCI-only tasks do not add DEB export entries. Components deliver TARs; Bazel containers produce OCI/required Docker archives; Make image entries consume archives through existing BAZEL_TARGET selectors. Verify labels/dependencies/supported configurations per layer without automatically expanding to containers/full-image switching. See rules/docker-base-trixie.mk, docker-config-engine-trixie.mk and docker-orchagent.mk. BUILD_WITH_BAZEL_WHEN_AVAILABLE defaults n and selects registered supported containers only. Before adding integration read docker-orchagent.mk, slave.mk and tools/bazel/docker.mk for switching/cache/failure semantics.
+Where Make integration is explicitly requested, preserve names/paths through explicit labels, cquery outputs and exporters. TAR/OCI-only tasks do not add DEB export entries. Components deliver runtime TARs or Python wheels installed through shared wheel_layer; Bazel containers produce OCI/required Docker archives; Make image entries consume archives through existing BAZEL_TARGET selectors. Verify labels/dependencies/supported configurations per layer without automatically expanding to containers/full-image switching. See rules/docker-base-trixie.mk, docker-config-engine-trixie.mk and docker-orchagent.mk. BUILD_WITH_BAZEL_WHEN_AVAILABLE defaults n and selects registered supported containers only. Before adding integration read docker-orchagent.mk, slave.mk and tools/bazel/docker.mk for switching/cache/failure semantics.
 
 ## OCI and installation images
 

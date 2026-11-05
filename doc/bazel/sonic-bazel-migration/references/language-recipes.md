@@ -12,7 +12,7 @@ Follow [Rust](rust.md): analysis -> MODULE/SDK -> Cargo/shared graph -> native t
 
 ## Python and wheels
 
-Follow [Python](python.md): analysis -> interpreters/tools -> shared contents/metadata -> wheel/direct installation TAR -> cross-component runtime metadata -> assembly locks/consumers. Examples cover requires/extras/entries/resources/runtime_deps for two packages. Build dependencies, distribution requirements and final runtime versions remain distinct.
+Follow [Python](python.md): analysis -> interpreters/tools -> owner source/metadata -> wheel -> shared wheel_layer installation TAR -> OCI/rootfs. Examples cover requires/extras/entries/resources for two packages and their locked runtime closure. Preserve upstream tests and verify installed payloads. Build dependencies, distribution requirements and final runtime versions remain distinct; wheel_layer does not resolve them or provide PythonRuntimeInfo. Existing native/generated binding TARs and loose scripts/assets need no unrelated wheel conversion.
 
 ## Pinned prebuilt inputs
 

@@ -10,7 +10,7 @@ Read Dockerfiles/templates/base/install sets/customization from Make analysis. D
 | --- | --- | --- |
 | FROM | Suite/digest/platform/inherited files/accounts/packages/project components | Pinned OCI and inheritance checks |
 | apt | Roots/full closure/sources/scripts/configuration | Common lock/public inputs/step-5 installation |
-| pip/source install | Producers/Requires-Dist/Python/platform/extras/paths | Source TAR/runtime lock/third-party installation |
+| pip/source install | Producers/Requires-Dist/Python/platform/extras/paths | Source-owner wheels/runtime lock/shared wheel_layer TARs |
 | COPY/ADD | Origins/paths/overwrite/mode/uid/gid/links | Producer or resource/configuration TAR |
 | RUN/customization | File/account/service/cache/state effects and stages | Explicit actions or dedicated real installer |
 | USER/ENV/WORKDIR/entry | Numeric identity/expansion/directory/argv/signals | OCI config/startup checks |
@@ -27,7 +27,7 @@ Read selected module/registry recipes and record exact sources/patches/rules/loc
 | Source installation | sonic_deploy_tar/language installs | Native contents -> runtime/symbol TARs |
 | Native metadata | runtime_packages/group | Recipes/TAR/deps -> identity/relations/payload |
 | Incremental APT | apt_layer | Base/lock/data-control/policy -> layer/selection |
-| Python closure | plan/wheel_layer/checked_python_runtime | Metadata/lock/TARs -> checked installation |
+| Python closure | Source-owner wheels/shared wheel_layer plus verified metadata/check adapter | Wheels/metadata/lock -> checked installation TAR |
 | Accounts | accounts/account_layer | Actual pre-change OCI -> passwd/group/receipt |
 | State | installed_packages | Same base/selection/source metadata/TARs -> status/metadata |
 | OCI/archive | oci_image/load | Ordered layers/config -> layout/Docker archive |
@@ -43,7 +43,7 @@ Recursively close selected entries/original installation relations:
 | Identity | Producer | Requirements | Installation | Verification |
 | --- | --- | --- | --- | --- |
 | Native source | Module/commit | control/runtime metadata | Public runtime TAR | Producer then complete image set |
-| Python source | Source/version/metadata | Requires-Dist/markers/extras | TAR/PythonRuntimeInfo | Plan/check interface |
+| Python source | Source owner/wheel/version/metadata | Requires-Dist/markers/extras | Wheel -> shared wheel_layer TAR | Wheel metadata/plan/installed-closure checks |
 | Third-party Python | Locked version/origin/hash | Resolver metadata | Full locked-wheel TAR | Closure/imports |
 | APT | Common lock/set | Edges/control | data-control or raw DEBs | Selection/install/runtime |
 | Inherited | Pinned base/metadata | Actual package/files | OCI layers | Identity/version/missing/conflicts |
@@ -52,7 +52,12 @@ Compile deps do not install files. RuntimePackagesInfo is analysis metadata, not
 
 ## 4. Prepare locks, state inputs and configuration
 
-Use infra common sources/requests/production APT lock and image set. Actually [update/check](dependency-locking.md#apt), then derive apt_inputs labels. [Python](dependency-locking.md#python-runtime-locks-and-requires-dist) collects transitive source metadata and pins interpreter/platform/extras/index. Connect staleness checks to final installation TAR and use all_whl_requirements for external closure.
+Use infra common sources/requests/production APT lock and image set. Actually [update/check](dependency-locking.md#apt), then derive apt_inputs labels. [Python](dependency-locking.md#python-runtime-locks-and-requires-dist) collects metadata from the source-owner wheels and pins interpreter/platform/extras/index. Install those wheels with shared `wheel_layer`, and use `all_whl_requirements` for the locked external closure. Connect complete closure, installed-metadata and staleness checks to the final installation TAR.
+
+Verify the selected shared API first. The inspected `wheel_layer` returns only a TAR;
+`python_runtime_plan` and `checked_python_runtime` require a provider it does not emit.
+Complete the [shared wheel metadata adapter](dependency-locking.md#pip-runtime-lock-generation-example)
+before using those rules for wheel inputs. Wheel installation alone is not runtime validation.
 
 Separate plans from final assembly packages so plans build independently. Initial empty requirements_lock may bootstrap pip.parse only when absent; formal update/check precedes images. Retain existing locks.
 
@@ -76,7 +81,7 @@ For required APT/dpkg/scripts/triggers:
 4. Consume the complete filesystem TAR as replacement root, without old base layers; otherwise deleted files reappear.
 5. Inspect real dpkg state/installer receipt. It is not apt_layer selection. Before adding source TARs, form intermediate OCI from full rootfs, recheck locked sets with apt_layer against that base, then feed matching selection/base/source metadata to installed_packages. Existing packages should be inherited; new scripted packages return to installation. Build/check intermediate identities/payload before final OCI.
 
-Source components still consume direct TARs under [installation](install-interfaces.md). This branch installs fixed distributions needing real scripts. Prepare rootfs/tools through [image routes](image-recipes.md#3-rootfs-build-installation-layers-before-merging), with the same native environment/digest/permissions. Completion: every original effect has inputs/actions/environment/observations.
+Source native components consume their installation TARs; Python distributions use source-owner wheels installed through shared `wheel_layer` under [installation](install-interfaces.md). This branch installs fixed distributions needing real scripts. Prepare rootfs/tools through [image routes](image-recipes.md#3-rootfs-build-installation-layers-before-merging), with the same native environment/digest/permissions. Completion: every original effect has inputs/actions/environment/observations.
 
 ## 6. Layer ordering and path semantics
 
@@ -84,9 +89,15 @@ List ordered stages and origins/purpose/checks for overwrite/deletion. Distingui
 
 Check contractual numeric owners/modes/hardlinks/symlinks/capabilities/xattrs. Members are safe root-relative paths; legal absolute links retain target-root semantics rather than host interpretation. OCI consumers handle whiteout/opaque. flatten is not a universal OCI rootfs replay engine. Generate status/metadata TAR before image inclusion and keep base/selection/source/layout aligned. Recheck later overwrites. Completion: explicit layer identities/order/final metadata agreement.
 
-## 7. Complete incremental assembly example
+## 7. Incremental assembly template
 
 Example contract: AMD64 Debian/Python 3.13, source exampled/libexample1, Python service[metrics]/transitive common, locked external requirements, /etc/example/config.json, uid/gid 21000, /var/lib/example. Example programs expose version/self-check; substitute real interfaces. Multiarchitecture work maps platform -> OCI architecture -> APT set -> Python plan/lock/provenance -> runtime/debug, rather than changing config architecture alone. Names are roles, not actual product lists.
+
+This template assumes a completed shared wheel metadata/check adapter supplies
+`//dockers/docker-example:python_plan` and `:python_runtime` in the runtime package.
+The latter must validate and merge the two wheel-layer TARs shown below. Its definition is
+intentionally omitted because the inspected shared API cannot provide it directly for wheels.
+This is an assembly contract, not a ready-to-build recipe until that prerequisite is supplied.
 
 ### Inputs and MODULE
 
@@ -96,7 +107,7 @@ Select compatible rules/source versions, reusing root declarations. Dependencies
 | --- | --- |
 | Native program/library | @example_native//dist:runtime and @example_library//dist:runtime |
 | Metadata | Each //:runtime_packages.json, original recipes/required_paths |
-| Python | service_install with common and shared metadata |
+| Python | @example_python//:service_wheel and :common_wheel with source metadata and checked closure |
 | APT | Common example_runtime set including target Python/libstdc++/closure |
 | Base | Pinned example_base or original OCI |
 
@@ -142,28 +153,24 @@ use_repo(pip, "example_runtime_pip")
 
 ### Independent runtime plan and update
 
-Parent package avoids final pip/assembly imports:
+Keep the parent plan independent of final pip/assembly imports. Export the three owner files:
 
 ```starlark
-load("@sonic_build_infra//python:runtime_lock.bzl", "python_runtime_plan")
 package(default_visibility = ["//visibility:public"])
 exports_files([
     "python/requirements.in",
     "python/requirements_lock.txt",
     "python/lock-inputs.json",
 ])
-python_runtime_plan(
-    name = "python_plan",
-    packages = ["@example_python//:service_install"],
-    roots = ["example-service[metrics]"],
-    source_distributions = ["example-service", "example-common"],
-    python_version = "3.13",
-    python_platform = "x86_64-unknown-linux-gnu",
-    uv_version = "0.12.18",
-)
 ```
 
-After initial bootstrap, run pinned uv against retained existing versions:
+The adapter's `python_plan` reads metadata from `service_wheel` and `common_wheel`, uses
+root `example-service[metrics]`, and records both source identities, Python `3.13`, platform
+`x86_64-unknown-linux-gnu`, uv `0.12.18`, target markers and resolver inputs. It must reject a
+missing source producer or incompatible metadata. Do not pass raw wheels or wheel-layer TARs
+to the existing provider-only `python_runtime_plan(packages = ...)` interface.
+
+After the adapter and initial bootstrap are in place, run pinned uv against retained existing versions:
 
 ```sh
 bazel build //dockers/docker-example:python_plan
@@ -189,7 +196,6 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@sonic_build_infra//oci:accounts.bzl", "account_layer")
 load("@sonic_build_infra//oci:debug_symbols_layer.bzl", "debug_symbols_layer")
 load("@sonic_build_infra//oci:installed_packages.bzl", "installed_packages")
-load("@sonic_build_infra//python:runtime_lock.bzl", "checked_python_runtime")
 load("@sonic_build_infra//python:wheel_layer.bzl", "wheel_layer")
 load("@tar.bzl", "tar")
 load("//tools/bazel/oci:apt_layer.bzl", "apt_layer")
@@ -215,20 +221,24 @@ apt_layer(
 filegroup(name = "apt_selection", srcs = [":apt_runtime"], output_group = "selection")
 flatten(name = "apt_files", tars = [":apt_runtime"], deduplicate = True)
 wheel_layer(
+    name = "source_python",
+    wheels = [
+        "@example_python//:common_wheel",
+        "@example_python//:service_wheel",
+    ],
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
+    scripts = "/usr/local/bin",
+    interpreter = "/usr/bin/python3",
+)
+wheel_layer(
     name = "external_python",
     wheels = all_whl_requirements,
     site_packages = "/usr/local/lib/python3.13/dist-packages",
 )
-checked_python_runtime(
-    name = "python_runtime",
-    plan = "//dockers/docker-example:python_plan",
-    requirements = "//dockers/docker-example:python/requirements.in",
-    lock = "//dockers/docker-example:python/requirements_lock.txt",
-    inputs = "//dockers/docker-example:python/lock-inputs.json",
-    sources = ["@example_python//:service_install"],
-    third_party = [":external_python"],
-    update_command = "tools/bazel/example-python-lock",
-)
+# Prerequisite supplied by the completed shared adapter, not by wheel_layer:
+# :python_runtime validates :source_python + :external_python against the plan,
+# requirements, lock and provenance above, then exports their checked merged TAR.
+# Stale-input diagnostics name tools/bazel/example-python-lock.
 # Use the same base and normalization policy for every source layer.
 normalize_layer(
     name = "native_files",
@@ -333,7 +343,7 @@ owner="$PWD/dockers/docker-example/python"
   --uv "${UV:?set UV to the fixed uv executable}"
 ```
 
-Set executable permission and verified UV path; BAZEL may be a common wrapper. Updates are separate from assembly, whose checked_python_runtime remains mandatory. Debug here adds source symbols. Required GDB/system symbols/tools need locked debug sets selected against exact runtime, state checks and ELF pairing. Preserve DebugSymbolsInfo/explicit interfaces through wrappers.
+Set executable permission and verified UV path; BAZEL may be a common wrapper. Updates are separate from assembly. The adapter's mandatory check must verify exact source/external installed sets, source metadata, locked versions, transitive requirements, target markers/extras and lock freshness before emitting `:python_runtime`. Preserve wheel `.dist-info`, entry points and resources; reject missing dependencies or source identities replaced by external wheels. Debug here adds source symbols. Required GDB/system symbols/tools need locked debug sets selected against exact runtime, state checks and ELF pairing. Preserve DebugSymbolsInfo/explicit interfaces through wrappers.
 
 ## 8. Real installation example
 

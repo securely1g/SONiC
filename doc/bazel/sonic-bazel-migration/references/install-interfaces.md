@@ -7,12 +7,14 @@ Read the entire [shared contract](common-contract.md), then applicable sections 
 For each item record producer, target path/type/mode/uid/gid/links, conditions, runtime/development/symbol layer and consumers. Derive installation from original contracts rather than runfiles. Record authoritative metadata/derivation once.
 
 ```text
-Native programs/libraries/Python modules/resources + component version/install declarations
+Native programs/libraries/resources + component version/install declarations
   ├─ Native compilation interfaces (CcInfo/PyInfo, etc.)
   └─ Installation contents and metadata
        ├─ Runtime TAR/development contents/matching symbols -> OCI, rootfs
        ├─ Component package identity, runtime requirements, installation behavior -> OCI, rootfs
-       └─ Requested distribution formats -> DEB, wheel
+       └─ Requested final distribution format -> DEB
+Python distribution owner source + packaging metadata
+  └─ Wheel -> shared wheel_layer -> Installation TAR -> OCI, rootfs
 ```
 
 Components choose public names. runtime, runtime.debug_symbols, development and runtime_metadata illustrate roles, not mandatory targets. Consumers declare payload, runtime dependencies, metadata and service/account behavior separately.
@@ -76,36 +78,40 @@ packages keys match binary packages in control; changelog source/version rules m
 
 | Identity | Installation route |
 | --- | --- |
-| Source-built Python | Shared files/resources/extensions/metadata generate wheel and installation TAR |
-| Pinned third-party prebuilt wheel | Assembly generates installation TAR, below |
+| Source-built Python distribution | Owner source/metadata -> wheel -> shared wheel_layer installation TAR |
+| Pinned third-party prebuilt wheel | Locked wheel -> shared wheel_layer installation TAR |
+| Existing native/generated binding runtime TAR | Retain its declared native installation interface within the task's scope |
 
-For sources determine py_library/extensions, package paths, .data categories, entries and dist-info. Wheel/install branches share content declarations. Map purelib/platlib/scripts/headers/data to target interpreter layout, generate scripts/metadata/TAR and expose directly to OCI/rootfs. Installed RECORD must describe actual files; shebang matches the target interpreter. Add runtime requirements/native libraries to runtime closure.
+For sources determine py_library/extensions, package paths, .data categories, entries and dist-info. The owner builds the wheel; the shared installer maps purelib/platlib/scripts/headers/data to the target interpreter layout and generates the installation TAR from it. Installed RECORD must describe actual files; shebang matches the target interpreter. Add runtime requirements/native libraries to the runtime closure.
 
 Evaluate distribution/version/Requires-Python/Requires-Dist/extras/markers/entries/licenses/resources/ABI/tags. Rules centrally generate METADATA/WHEEL/RECORD/entries; components provide values, consumers do not duplicate algorithms.
 
-Use infra python/site_packages.bzl. files maps sources/resources explicitly. Share distribution/version/requires/extras/entries with py_wheel. runtime_deps points to source dependency install targets. Default output is this package's TAR; PythonRuntimeInfo propagates source/dependency metadata and TAR relationships. Assemblers obtain closure through plans/checks, not ordinary deps alone.
+Use the owner's declared source wheel target and infra python/wheel_layer.bzl. Keep one authoritative content/metadata declaration; obtain installation and runtime metadata from the selected wheel. Do not replace this route with site_packages/source_package_install, source-file copies or private wheel extraction. Assemblers obtain the complete closure through metadata and lock checks; ordinary deps or a wheel filename do not establish it.
 
 ```text
-Package file targets + one shared metadata declaration
-    ├─ py_wheel -> .whl
-    └─ site_packages -> This package's installation TAR + PythonRuntimeInfo -> OCI, rootfs
+Owner package file targets + authoritative metadata
+    -> Source-built wheel -> shared wheel_layer -> Installation TAR -> OCI, rootfs
 ```
 
-Both branches may generate their required metadata; avoiding one ordinary archive is not a reason to invent an unused provider. Source installation must not unpack the final wheel. See [Python](language-recipes.md#python-and-wheels); prebuilt wheel installation belongs to assembly below.
+Wheel installation is the intended transformation, including for source-built Python distributions. See the [Python producer example](python.md). Existing native/generated binding TARs and loose scripts/assets need no unrelated conversion; preserve their installation and runtime checks. A wheel-derived TAR remains wheel-based regardless of a target name such as runtime or pkg.
 
 ## 4. OCI and rootfs consumption
 
-Collect source identity, Requires-Python/Dist and TAR relationships under [runtime locking](dependency-locking.md#python-runtime-locks-and-requires-dist). Resolve the complete entries/target environment and commit the runtime lock. Normal images read it and verify provenance against current metadata. Refresh after changes before assembly. Consume source TARs and locked third-party wheels; every applicable requirement needs a matching input/version.
+Collect owner-wheel identity, Requires-Python/Dist and installation TAR relationships under [runtime locking](dependency-locking.md#python-runtime-locks-and-requires-dist). Resolve the complete entries/target environment and commit the runtime lock. Normal images read it and verify provenance against current wheel metadata. Refresh after changes before assembly. Consume owner wheels and locked third-party wheels through the shared installer; every applicable requirement needs a matching input/version.
 
-Use wheel_layer at assembly to produce reusable OCI/rootfs installation TARs. Python 3.13 example:
+Use wheel_layer to produce reusable OCI/rootfs installation TARs. This Python 3.13 example consumes the owner-wheel interfaces and locked external hub from the [runtime lock workflow](dependency-locking.md#pip-runtime-lock-generation-example):
 
 ```starlark
+load("@example_runtime_pip//:requirements.bzl", "all_whl_requirements")
 load("@sonic_build_infra//python:wheel_layer.bzl", "wheel_layer")
 
 wheel_layer(
-    name = "third_party_runtime",
-    wheels = ["@locked_distribution//:wheel"],
-    site_packages = "/usr/local/lib/python3.13/site-packages",
+    name = "installed_python",
+    wheels = [
+        "@example_common//:common_wheel",
+        "@example_service//:service_wheel",
+    ] + all_whl_requirements,
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
     scripts = "/usr/local/bin",
     headers = "/usr/local/include",
     data_prefix = "/usr/local",
@@ -114,16 +120,16 @@ wheel_layer(
 )
 ```
 
-Replace @locked_distribution//:wheel with actual locked targets and list the complete closure. wheel_layer does not resolve dependencies. Obtain paths from the image runtime and wheels from committed locks.
+Replace illustrative owner labels with actual source targets and list the complete locked closure. wheel_layer does not resolve dependencies. Obtain paths from the image runtime, third-party wheels from committed locks, and owner-wheel provenance from the selected source actions. Its DefaultInfo contains the TAR; it does not supply PythonRuntimeInfo or accept runtime_deps. Integrate a supported shared wheel metadata/lock-check interface before treating this TAR as a checked runtime; the build alone does not validate dependency resolution. A checker consuming this combined TAR must classify owner/external identities from the selected wheels; use separate owner/external layers as in the locking example when its interface classifies whole TARs.
 
 OCI includes TARs with oci_image(tars=[...]) and separately declares base/user/entrypoint/environment/platform. Shared interfaces carry metadata/symbols. TARs do not execute postinst; contractual ordering/conflicts remain explicit.
 
 Rootfs consumes the same TARs and centrally handles overwrite/modes/accounts/services/caches before filesystems; see [rootfs example](image-assembly-examples.md#rootfs-and-squashfs). Consumers differ in assembly behavior, without duplicate equivalent component packages.
 
-RuntimePackagesInfo transitive metadata supports native package analysis; every actual runtime TAR still needs assembly inputs. PythonRuntimeInfo/checks propagate Python source TARs. Consume real fields rather than assuming ordinary deps or oci_image installs transitives. See [OCI example](oci.md#7-complete-incremental-assembly-example).
+RuntimePackagesInfo transitive metadata supports native package analysis; every actual runtime TAR still needs assembly inputs. Python wheel metadata and checked locks must preserve source producer identities and wheel/TAR relationships. Consume verified shared interfaces rather than assuming wheel_layer provides PythonRuntimeInfo or that ordinary deps/oci_image install transitives. See [OCI example](oci.md#7-incremental-assembly-template).
 
 For real APT/dpkg scripts use [apt_install](oci.md#5-choose-installation-branch-and-implement-behavior). Its complete rootfs TAR replaces the root; do not overlay the old OCI base with it. Distinguish installer receipt from incremental selection. After real installation, add source TARs to an intermediate OCI, select/check again against that base, then reuse installed_packages. Retain separate identities for source TAR, fixed-distribution installation and real package-manager installation.
 
 ## 5. Acceptance
 
-Build runtime TAR, metadata and requested final packages explicitly and use minimal OCI/rootfs consumers. Check paths/types/modes/ownership/links/ABI/closure/identity/install behavior. Python checks imports/entries/resources/distribution metadata. aquery must show source installation directly consumes files without DEB/wheel repack/unpack; classify fixed-third-party extraction separately. Minimal consumers do not prove complete image boot. Follow [acceptance](review-port.md).
+Build runtime TAR, metadata and requested final packages explicitly and use minimal OCI/rootfs consumers. Check paths/types/modes/ownership/links/ABI/closure/identity/install behavior. Retain upstream Python tests and check imports/entries/resources/distribution metadata from installed payloads. aquery must show owner source -> wheel -> shared WheelLayer action -> installation TAR for wheel-packaged Python, and direct installation contents for native TARs without a DEB round trip. Distinguish pinned external wheels from source-built owner wheels. Minimal consumers do not prove complete image boot. Follow [acceptance](review-port.md).

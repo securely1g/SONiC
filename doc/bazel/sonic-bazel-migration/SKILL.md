@@ -30,7 +30,7 @@ maps each fact to a rule, public target, installed output and required consumer 
 | C/C++, headers, static/shared libraries, SONAME and platform-selected compilers | [Native C/C++](references/native-cc.md) |
 | Go/CGo, SDK, Gazelle, build tags, embedded resources, module and ZIP locks | [Go](references/go.md) |
 | Rust/Cargo, features, build scripts, native dependencies and owner libraries | [Rust](references/rust.md) |
-| Python source packages, wheel metadata, direct installation TAR and runtime dependencies | [Python](references/python.md) |
+| Source-built Python wheels, wheel installation TARs and runtime dependencies | [Python](references/python.md) |
 | Flex, Bison, protoc, SWIG, Thrift and project generators | [Code generation](references/code-generation.md), [complete examples](references/code-generation-examples.md), [consumer tests](references/protocol-tests.md) |
 | Source identity, Debian source inputs, ordered patches and overlays | [Source preparation](references/source-and-patches.md), [module ownership](references/register-bazel-module.md) |
 | Platform/features and configure-derived headers | [Configuration](references/configuration.md), [controlled Autoconf probes](references/autoconf-probe.md) |
@@ -42,8 +42,9 @@ maps each fact to a rule, public target, installed output and required consumer 
 | Kernel, rootfs, initramfs, ONIE, qcow2 and prebuilt inputs | [Image and kernel routes](references/image-recipes.md), [other input routes](references/language-recipes.md) |
 | Acceptance, evidence and stage handoff | [Review contract](references/review-port.md), [Make equivalence check](references/make-bazel-equivalence.md), [stage handoff](references/phase-handoff.md), [dependency collector](references/build-dep-graph.md), [Make evidence collector](references/component-analysis-script.md) |
 
-Read only applicable routes, including the references they trigger. A default component deliverable is
-a directly consumable installation TAR, matching symbols where applicable, and package metadata.
+Read only applicable routes, including the references they trigger. Native components deliver
+installation TARs, matching symbols where applicable, and package metadata. Python distributions
+deliver source-built wheels, installed into TAR layers through the shared wheel installer.
 Final DEB production retains the existing explicit-scope approval rule. Compile ordinary components
 with native language rules; select the C/C++ toolchain through platforms rather than naming a compiler
 toolchain on component targets.
@@ -177,7 +178,7 @@ Make may still orchestrate the rest of the VS installer and the agreed metadata/
 
 ### Consume runtime and debug TARs directly for OCI
 
-For TAR-to-OCI work, consume the owner's source-built runtime TAR directly, with matching debug TARs for native ELF outputs. Add missing source/TAR support with that owner. Do not introduce new DEB production, or the CI, registry entries and shared helpers supporting it, merely to reproduce legacy Make outputs, provide debug symbols, or feed OCI assembly.
+For TAR-to-OCI work, consume the owner's source-built runtime TAR directly, with matching debug TARs for native ELF outputs. Python distributions follow the [wheel installation path](#use-wheels-for-python-image-components) below. Add missing source and output support with the owner. Do not introduce new DEB production, or the CI, registry entries and shared helpers supporting it, merely to reproduce legacy Make outputs, provide debug symbols, or feed OCI assembly.
 
 Before proposing new DEB packaging, identify a concrete consumer repository and target or build step that requires an installable `.deb`, and explain why the TAR interface cannot satisfy it. Keep that separately scoped package work independent of OCI consumers that only need TARs. The existence of a legacy Debian recipe or another optional packaging proposal alone does not establish this need. A genuine DEB consumer does not waive the explicit approval requirement for adding a new DEB package definition.
 
@@ -185,9 +186,17 @@ Preserve the legacy Make build, Debian recipes/control files/scripts, package ou
 
 Preserve required runtime installation behavior and metadata when composing TARs; do not fabricate dpkg installation state or silently drop that contract. Follow the [Docker template](references/docker-image-template.md#split-dependency-work-from-image-integration) for target selection and actual prerequisite tracking. Missing unrequested DEB packaging is not unfinished TAR-to-OCI migration work.
 
+### Use wheels for Python image components
+
+Build each Python distribution from declared sources in its owning repository. The image/rootfs assembly installs those exact wheels with the shared `wheel_layer` rule, producing installation TARs for OCI/rootfs consumption. Use this path for source-built and pinned external wheels; do not require a parallel direct-source installation TAR for the same distribution.
+
+Keep modules, generated code, resources, entry points, licenses and distribution metadata in the wheel. Preserve `Requires-Dist`, extras, target interpreter/ABI and platform tags. Supply the complete reviewed runtime dependency closure: `wheel_layer` installs wheels but does not resolve dependencies. Keep canonical locks in Git and verify installed contents, metadata, imports and entry points using the tested wheel artifacts. See the [Python procedure](references/python.md) and [locking contract](references/dependency-locking.md#pip-runtime-lock-generation-example).
+
+Existing native/generated Python bindings delivered with a native component's runtime TAR may retain that interface; this policy does not require an unrelated repackaging migration. It does not permit importing Make-built project wheels instead of building their sources with Bazel.
+
 ### Keep dependency build changes out of the container PR
 
-For Docker-to-Bazel migration, put new or changed dependency source-build and runtime/debug TAR support in separate dependency PRs, one per producing component. For example, libnl3's source/TAR support belongs in one PR, libyang3's in another, and their OCI integration in the container PR. When a separately scoped consumer requires DEBs, keep related runtime, development and debug packages from the same component together.
+For Docker-to-Bazel migration, put new or changed dependency source builds and their runtime/debug TAR or Python wheel outputs in separate dependency PRs, one per producing component. For example, libnl3's source/TAR support belongs in one PR, libyang3's in another, and their OCI integration in the container PR. When a separately scoped consumer requires DEBs, keep related runtime, development and debug packages from the same component together.
 
 Keep each dependency's build targets, packaging, tests and documentation with its owner. The container PR consumes those targets/versions and contains image composition, Make handoff and image validation. Reuse existing compatible dependency targets without creating unnecessary producer PRs. Link actual prerequisites and follow the existing registry and dependency-readiness rules. Splitting the work does not waive the runtime source-build requirement or require new DEB outputs when runtime/debug TARs already satisfy the consumer; adding a new DEB package definition still requires explicit approval.
 

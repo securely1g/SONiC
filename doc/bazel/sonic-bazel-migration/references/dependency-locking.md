@@ -216,9 +216,9 @@ Authorities: config-engine requirements/README, root pip.parse and [uv compile](
 
 ### Python runtime locks and Requires-Dist
 
-Assemblers own complete runtime resolution. Lock selected entries' full closure with versions/origins/distribution hashes, retaining source producer/TAR relationships. Share locks only for equivalent resolution inputs; verify environment applicability.
+Assemblers own complete runtime resolution. Lock selected entries' full closure with versions/origins/distribution hashes, retaining source owner/wheel/installed-TAR relationships. Source owners produce wheels; the shared `wheel_layer` installs them and locked external wheels into TARs for OCI/rootfs. Share locks only for equivalent resolution inputs; verify environment applicability.
 
-1. Collect entry/transitive source identity/Requires-Python/Dist from the same declarations as wheel METADATA. Pinned resolvers follow third-party metadata. Source metadata must be independent of runtime lock generation to avoid cycles.
+1. Collect entry/transitive source identity/Requires-Python/Dist from wheel METADATA or declarations verified against it. Preserve extras and markers. Pinned resolvers follow third-party metadata. Building source wheels and exporting their metadata must be independent of image runtime lock generation to avoid cycles.
 2. Explicitly depend on metadata, entry set, target Python/platform/extras/index/constraints. Export requests from them rather than duplicate Requires-Dist manually.
 3. Re-resolve affected locks with fixed tools/from existing locks after any input change, preserving unrelated versions. Record input digests; constraint/extras/marker changes update provenance even if versions stay equal.
 4. Commit runtime lock, provenance, needed exports and consumer declarations in owning image/rootfs repositories as explicit normal inputs, associating cross-repository metadata versions. Updates are separate. Normal builds read/check digests and fail missing/stale locks with update instructions, never silently resolving/writing.
@@ -230,30 +230,42 @@ Image-owner template: replace identities/directories. Normal builds/updates shar
 
 | Role | Public target/metadata |
 | --- | --- |
-| example-service | @example_service//:install, 2.0, Python >=3.11; example-common>=1,<2, requests>=2.32.3,<3 with Python marker, prometheus-client>=0.20,<1 for metrics extra |
-| example-common | @example_common//:install, 1.2, Python >=3.11; PyYAML>=6,<7 |
+| example-service | @example_service//:service_wheel, 2.0, Python >=3.11; example-common>=1,<2, requests>=2.32.3,<3 with Python marker, prometheus-client>=0.20,<1 for metrics extra |
+| example-common | @example_common//:common_wheel, 1.2, Python >=3.11; PyYAML>=6,<7 |
 
-These are illustrative modules. Shared metadata feeds wheel/install. service runtime_deps references common; PythonRuntimeInfo carries metadata/TAR identity.
+These are illustrative modules. Both source wheels belong in the selected closure; a Python import dependency does not install its distribution automatically. The final dependency check must compare their installed `.dist-info/METADATA` with the source metadata used to resolve the lock.
 
-**1. Save a separate plan and owner inputs** in images/example/BUILD.bazel:
+**1. Verify the shared metadata/check interface before wiring the plan.** In the inspected
+[infra snapshot 08e0956f](https://github.com/securely1g/sonic-build-infra/blob/08e0956f80574b27a9b68e72fe855cc0089058e5/python/runtime_lock.bzl),
+`python_runtime_plan(packages = ...)` and `checked_python_runtime(sources = ...)` require
+`PythonRuntimeInfo` from the direct-source installation path. `wheel_layer` returns a TAR
+through `DefaultInfo` only. Neither a wheel label nor its TAR can replace that provider.
+The shared wheel metadata adapter is a prerequisite for using those rules with owner wheels;
+do not generate a parallel direct-source installation just to satisfy the old interface.
 
-```starlark
-load("@sonic_build_infra//python:runtime_lock.bzl", "python_runtime_plan")
+The existing `runtime_lock` CLI can construct a plan from declared metadata JSON and validate
+wheel-derived TARs using `check --source-tar ... --third-party-tar ... --verify-installation`.
+That capability does not supply the missing Bazel metadata/provider integration. Implement or
+select a compatible shared adapter before treating this template as a complete image recipe;
+do not replace dependency checks with a plain `wheel_layer` or copy resolver code into images.
 
-package(default_visibility = ["//visibility:public"])
-exports_files(["requirements.in", "requirements_lock.txt", "lock-inputs.json"])
-python_runtime_plan(
-    name = "runtime_plan",
-    packages = ["@example_service//:install"],
-    roots = ["example-service[metrics]"],
-    source_distributions = ["example-service", "example-common"],
-    python_version = "3.13",
-    python_platform = "x86_64-unknown-linux-gnu",
-    uv_version = "0.12.18",
-)
-```
+The plan contract for the example is:
 
-This package owns metadata planning only; wheel hub/final installation live in runtime subpackage. Plan reads metadata and packaging validates versions/Python/extras/markers. Source identities never resolve through PyPI; uv resolves external closure. Marker environment/index/constraints/tool version enter the plan, with authentication from execution environment. Resource-only byte changes may retain resolution plans.
+| Input | Value |
+| --- | --- |
+| Source wheels/metadata | service_wheel and common_wheel above |
+| Roots | example-service[metrics] |
+| Source distribution identities | example-service, example-common; never resolve these from PyPI |
+| Interpreter/platform | Python 3.13, x86_64-unknown-linux-gnu |
+| Resolver | Fixed uv 0.12.18, explicit index/find-links/constraints and target marker environment |
+| Owner inputs | images/example/requirements.in, requirements_lock.txt, lock-inputs.json |
+
+Keep planning independent of the final pip hub/assembly package. Validate source versions,
+Requires-Python, extras and markers; resolve only the external closure. Include marker
+environment/index/constraints/tool version in provenance, with credentials supplied outside
+recorded inputs. Resource-only byte changes may retain resolution plans. The commands below
+assume the completed adapter exposes `//images/example:runtime_plan` and its `.plan.json`
+output; that target is a required implementation boundary, not an existing wheel-layer API.
 
 **2. Save executable updater** tools/bazel/example-python-lock. Locate source root from script, share build/run flags and resolve plan paths before configuration changes:
 
@@ -308,27 +320,39 @@ images/example/runtime/BUILD.bazel:
 ```starlark
 load("@example_runtime_pip//:requirements.bzl", "all_whl_requirements")
 load("@sonic_build_infra//python:wheel_layer.bzl", "wheel_layer")
-load("@sonic_build_infra//python:runtime_lock.bzl", "checked_python_runtime")
+
+wheel_layer(
+    name = "source_packages",
+    wheels = [
+        "@example_common//:common_wheel",
+        "@example_service//:service_wheel",
+    ],
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
+    scripts = "/usr/local/bin",
+    interpreter = "/usr/bin/python3",
+)
 
 wheel_layer(
     name = "external_packages",
     wheels = all_whl_requirements,
     site_packages = "/usr/local/lib/python3.13/dist-packages",
 )
-checked_python_runtime(
-    name = "python_runtime",
-    plan = "//images/example:runtime_plan",
-    requirements = "//images/example:requirements.in",
-    lock = "//images/example:requirements_lock.txt",
-    inputs = "//images/example:lock-inputs.json",
-    sources = ["@example_service//:install"],
-    third_party = [":external_packages"],
-    update_command = "tools/bazel/example-python-lock",
-    visibility = ["//visibility:public"],
-)
 ```
 
-Use actual interpreter layout, not universal Debian paths. Checks validate plan/request/lock digests, complete source/third-party TAR identity/version/transitives, then export merged TAR for OCI/rootfs.
+Use the actual target interpreter layout, not universal Debian paths. `wheel_layer` installs
+the declared wheels, including metadata, resources and entry points; it does not resolve or
+check `Requires-Dist`. Keep source and external TARs distinct when using the existing CLI's
+installation checker, which assigns their origins by TAR input group.
+The [combined wheel-layer example](python.md) instead requires an adapter that checks
+source/external origins against the selected wheel identities within one TAR.
+
+The completed shared adapter must bind `:source_packages`, `:external_packages`, the plan,
+requests, lock and provenance to a mandatory read-only check, and export a checked merged
+TAR as `:python_runtime`. Require exact source/external installed sets, matching source
+metadata and locked external versions, no source distribution replaced by an external wheel,
+and all transitive requirements satisfied under target markers/extras. Missing or stale
+inputs must fail with the actual updater command. The two `wheel_layer` targets alone do
+not satisfy this contract and must not bypass it on the final OCI/rootfs dependency path.
 
 **4. Verify behavior:**
 
@@ -337,7 +361,7 @@ tools/bazel/example-python-lock --check
 bazel build //images/example/runtime:python_runtime
 ```
 
-Compare all three production digests around normal builds. Extract and import service/common/requests/yaml/prometheus_client in matching environments and read real resources. Connect the TAR under [OCI](oci.md). Change Requires-Dist, observe stale failure, update and confirm recovery. Ordinary builds neither run uv nor modify locks. Missing packages/version conflicts/input mismatches fail at this consumer. Deliver metadata/files/updater/consumer declarations. For sdist/native extensions also pin backend/ABI/toolchain; resolution platform flags do not prove extension builds. Actual Git/remote actions still require authorization.
+Compare all three production digests around normal builds. Extract and import service/common/requests/yaml/prometheus_client in matching environments and read real resources. Check wheel Python/ABI/platform tags and native payloads against the target; resolution platform flags do not prove extension compatibility. Connect the checked TAR under [OCI](oci.md). Change Requires-Dist, observe stale failure, update and confirm recovery. Ordinary builds neither run uv nor modify locks. Missing packages/version conflicts/input mismatches fail at this consumer. Deliver metadata/files/updater/consumer declarations. For sdist/native extensions also pin backend/ABI/toolchain. Actual Git/remote actions still require authorization.
 
 ## Version control and handoff of locks
 

@@ -122,11 +122,12 @@ Apply this section to native ELF artifacts that require source-level debugging.
 
 ## 8. Downstream image integration
 
-- Keep new or changed dependency source-build and runtime/debug TAR support in separate producer PRs, grouped by component. Keep the container PR focused on consuming those targets and image integration, with actual prerequisite links recorded. Do not add unused DEB producers, package-only CI gates, or Project dependencies to the selected TAR path.
+- Keep new or changed dependency source builds and runtime/debug TAR or Python wheel outputs in separate producer PRs, grouped by component. Keep the container PR focused on consuming those targets and image integration, with actual prerequisite links recorded. Do not add unused DEB producers, package-only CI gates, or Project dependencies to the selected TAR path.
 - For a Docker/OCI build request, inventory every project runtime component and transitive dependency, including base-image contents, and bind each to compatible Bazel source/package targets. Reuse existing owner targets and identify missing feature support before adding import adapters. Pinned Debian APT packages remain allowed; Make-produced project artifacts remain migration gaps under the [OCI runtime policy](../SKILL.md#build-oci-images-with-bazel-built-project-runtime-dependencies).
 - For DEB-to-OCI assembly, record the selected `rules_distroless`, `tar.bzl` BSD tar toolchain and `rules_oci` roles/versions under the [upstream-component policy](../SKILL.md#reuse-upstream-components-for-deb-to-oci-assembly). Verify the consumer BUILD file declares upstream extraction and assembly directly, generic archive/OCI processing stays upstream, and no shared importer or custom assembly wrapper is introduced without explicit scoped approval. Preserve package metadata and order, and validate runtime/debug identity and reproducibility.
 - Update the consumer's module dependencies and runtime package targets.
 - Verify that the container loads the intended library or binary, especially when a base image already contains another copy.
+- Build Python distributions as owner wheels and install the tested wheels through shared wheel_layer into image TARs. Check installed payloads, metadata, imports and entry points, target tags/ABI, and the complete locked Requires-Dist closure. Do not require a duplicate direct-source TAR target; existing bindings delivered with native runtime TARs may retain that interface.
 - Build the debug variant from the same runtime image and add matching symbols and tools.
 - For imported Make-built or prebuilt content, provide symbols from the matching producer build or record the coverage gap.
 - Validate the user-facing Make/Bazel entry point required by the current migration phase.
@@ -168,7 +169,7 @@ Apply this section to native ELF artifacts that require source-level debugging.
 - [ ] Map original archive/packaging inputs and preparation phases to declared fetch rules; keep downloaded originals out of overlays.
 - [ ] Map each source/generator/configuration/install fact to a native target and real consumer using [implementation steps](implement-component.md).
 - [ ] Apply each relevant language, code-generation, installation and image route from the main entrypoint.
-- [ ] Keep source wheel metadata separate from final environment resolution; maintain checked-in runtime locks driven by Requires-Dist.
+- [ ] Build source-owned Python wheels and install those exact artifacts through shared wheel_layer for OCI/rootfs. Keep wheel metadata separate from final environment resolution; maintain checked-in runtime locks driven by Requires-Dist and verify the installed closure.
 - [ ] Use a shared APT source and lock for payloads, target libraries and execution tools; preserve existing package pins.
 - [ ] Keep the old public rule contract at each PR boundary; test same-PR producer/consumer changes together.
 - [ ] Run [contract-based acceptance](review-port.md), preserve exact inputs/artifacts and record PASS/FAIL/NOT_RUN/BLOCKED by configuration.

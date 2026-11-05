@@ -210,4 +210,4 @@ bazel build //apt-example:debian_payload //apt-example:debian_controls
 bazel cquery --output=files //apt-example:debian_payload
 ```
 
-debian_payload exports files only. OCI performs [base selection/inheritance checks](oci.md#7-complete-incremental-assembly-example); rootfs uses [full wiring](image-assembly-examples.md#rootfs-and-squashfs) and control checks. Scripted packages need real installation. Compare data/control identity/lock versions/full set/architecture before connecting downstream.
+debian_payload exports files only. OCI performs [base selection/inheritance checks](oci.md#7-incremental-assembly-template); rootfs uses [full wiring](image-assembly-examples.md#rootfs-and-squashfs) and control checks. Scripted packages need real installation. Compare data/control identity/lock versions/full set/architecture before connecting downstream.

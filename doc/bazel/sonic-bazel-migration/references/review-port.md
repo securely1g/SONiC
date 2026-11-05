@@ -4,7 +4,7 @@ Read the [shared contract](common-contract.md). Expectations come from completed
 
 ## Current verification scope
 
-Use analyzed compile/install/consumer contracts and existing native/install interfaces. Default delivery is OCI-consumable TAR; original package/co-production facts determine retained contents, not mandatory final DEBs. Add DEB packaging/export only on explicit request. A TAR-only component delivery needs no original Make artifacts; its consuming image does. Image archives and approved DEBs that replace Make outputs pass the [Make equivalence check](make-bazel-equivalence.md) against Make's artifacts built from the same tree.
+Use analyzed compile/install/consumer contracts and existing native/install interfaces. Native components deliver OCI-consumable TARs; Python distributions deliver wheels installed into TAR layers through shared wheel_layer; original package/co-production facts determine retained contents, not mandatory final DEBs. Add DEB packaging/export only on explicit request. A component wheel/TAR delivery checks its analyzed Make contract; the original Make artifacts are required for its consuming image comparison. Image archives and approved DEBs that replace Make outputs pass the [Make equivalence check](make-bazel-equivalence.md) against Make's artifacts built from the same tree.
 
 Fully inspect Bazel artifacts/actions. Report analysis, implementation and validation separately. Derive support matrices from task contracts, not universal AMD64/ARM64 examples.
 
@@ -113,13 +113,13 @@ Map each value to controlled evidence/inputs/consumer across required matrices. 
 
 ### Bazel artifacts and installation contract
 
-Verify [production/consumption](install-interfaces.md): source DEB/wheel install targets directly consume contents/metadata; OCI/rootfs reuse them. Inspect aquery for prohibited final-package unpacking; pinned distributions are separate. [Special images](image-recipes.md) retain stage/boot contracts.
+Verify [production/consumption](install-interfaces.md): Python owners build wheels and OCI/rootfs assembly installs the tested wheels through shared wheel_layer. Inspect aquery for the actual wheel producer and installer inputs. Source DEB installation consumes contents/metadata directly, without producing then unpacking a DEB; pinned distributions retain their managed paths. [Special images](image-recipes.md) retain stage/boot contracts.
 
-- Inspect required native interfaces/runtime/development/tool TARs/symbols/metadata and missing/extra content; wheels separately. Default presubmits avoid unsolicited DEB packaging/tests/export/bridges.
+- Inspect required native interfaces/runtime/development/tool TARs/symbols/metadata and missing/extra content; verify source wheel artifacts and their installed TARs together. Default presubmits avoid unsolicited DEB packaging/tests/export/bridges.
 - Explicitly build public runtime/symbol/metadata and verify layout/closure/authority/real payload relationship. New DEBs must preserve existing TAR/image validation; packaging alone proves only that branch.
 - Use existing image APIs or minimal real consumers with explicit proof scope. Full OCI tasks also validate assembly/required startup.
 - Requested DEBs check control/members/types/modes/owners/links/scripts/configuration against analyzed transforms/versions/architecture/relations/dynamic rules, and pass the [equivalence check](make-bazel-equivalence.md) against Make's package of the same name.
-- Wheels check contents/resources/METADATA/entries/RECORD/tags/ABI; installed copies check interpreter/imports/entries.
+- Wheels check contents/resources/METADATA/entries/RECORD/tags/ABI and Requires-Dist against the reviewed runtime lock; installed copies check payload bytes, metadata, interpreter/imports/entries and use of the same wheel artifacts by consuming images.
 - ELF checks Machine/interpreter/SONAME/NEEDED/RPATH/RUNPATH/closure, installed versus runfiles paths, and build-id/debuglink/debug queries.
 - Check scripts/upgrades/config retention in appropriate isolation. OCI checks base identity/source/APT/wheel/order/user/entry/config/startup, installed status/metadata/receipt/payload and precise coverage of later source layers. Check accounts/directories/modes/services/caches. Debug images match exact runtime/final symbols. Installation/disk images check partitions/rootfs/kernel/initramfs/container storage and actual installer/boot behavior; structure is not boot proof.
 

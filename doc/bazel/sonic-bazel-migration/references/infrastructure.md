@@ -48,8 +48,7 @@ Paths below are relative to @sonic_build_infra; actual source attributes are aut
 | Runtime/symbol TAR | //tar:sonic_deploy_tar.bzl | binaries maps mtree/ELF, srcs/mtree resources; .debug_symbols |
 | Requested DEB | //deb:sonic_deb.bzl | data TAR; [explicit packaging](build-deb-with-sonic-deb.md) |
 | Python native bindings | //python:py_native_library.bzl | native_so, optional native_py, cc_deps; wrapper/runtime propagation |
-| Wheel installation | //python:wheel_layer.bzl | Full wheel closure; explicit site-packages/scripts/headers/interpreter |
-| Python source installation | //python:site_packages.bzl site_packages/export_py_info | Target interpreter/paths; direct source installation interface |
+| Wheel installation | //python:wheel_layer.bzl | Source-built and pinned external wheels; full locked closure and explicit target site-packages/scripts/headers/interpreter; emits an installation TAR |
 | SWIG | //swig:defs.bzl swig_gen/swig_gen_go | Matching parser/wrapper defines; headers/template closure |
 | protobuf | //proto:protoc, proto/README.md | Existing pinned APT tool; [version/consumer contract](code-generation.md) |
 | Migration Autoconf | //tools/autoconf:probe.bzl autoconf_probe | Toolchain/CcInfo/sources/pkg-config -> [probe directory](autoconf-probe.md) |

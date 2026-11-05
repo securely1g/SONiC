@@ -35,7 +35,7 @@ published through `sonic-bazel-registry`. Follow the existing
 when adopting existing work, but assess the final graph before retaining an
 earlier workaround or helper.
 
-For Docker-to-Bazel work, [split dependency build changes from the container PR](docker-image-template.md#split-dependency-work-from-image-integration): one PR per dependency component for its source-build and runtime/debug TAR support. Image integration consumes those targets and records actual prerequisite links. Follow the [TAR-to-OCI output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci); introduce new DEBs only for a separately scoped consumer that requires that format, while preserving the legacy Make build.
+For Docker-to-Bazel work, [split dependency build changes from the container PR](docker-image-template.md#split-dependency-work-from-image-integration): one PR per dependency component for its source build and runtime/debug TAR or Python wheel outputs. Image integration consumes those targets and records actual prerequisite links. Follow the [TAR-to-OCI output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci); introduce new DEBs only for a separately scoped consumer that requires that format, while preserving the legacy Make build.
 
 ## Source build
 
@@ -71,11 +71,11 @@ requires explicit approval for that exception. Record its action/cache granulari
 
 Use the [Python procedure](python.md) and [installation contract](install-interfaces.md). Wheel creation
 records direct Requires-Dist metadata; resolve the combined pip runtime closure when assembling the
-Docker/rootfs environment, not independently in every source wheel. Share the owner's explicit payload
-and metadata between py_wheel and direct installation TAR targets. Do not wheel-then-unpack source
-packages merely to assemble the image. Fixed external wheels retain their managed wheel_layer path.
+Docker/rootfs environment, not independently in every source wheel. Build each owner's explicit payload
+and metadata into its wheel, then install the tested wheel through shared wheel_layer to produce an
+installation TAR. Source-built and pinned external wheels use the same installation path.
 Runtime lock inputs include wheel metadata/Requires-Dist and target markers; keep the resulting lock
-in Git and use the [complete lock-generation example](dependency-locking.md#pip-runtime-lock-generation-example).
+in Git and follow the [lock-generation contract](dependency-locking.md#pip-runtime-lock-generation-example).
 
 
 Keep libraries, CLI targets, direct requirements and wheel definitions with the
@@ -115,7 +115,7 @@ test inventory/results and an installation receipt tied to the same bytes.
 ## Docker assembly
 
 Follow the [detailed OCI sequence](oci.md), including producer metadata, transitive runtime
-dependencies, direct installation TARs, ordered layers and runtime/debug consistency.
+dependencies, native runtime TARs and wheel installation TARs, ordered layers and runtime/debug consistency.
 
 
 For the default OCI scope, first audit and satisfy the [project runtime source-build requirement](docker-image-template.md#require-bazel-built-project-runtime-dependencies),

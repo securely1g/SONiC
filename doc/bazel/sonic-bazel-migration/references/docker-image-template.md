@@ -48,7 +48,7 @@ usable for permitted inputs; their existence does not change this criterion.
 
 Keep dependency build migrations out of the container PR. Apply the
 [TAR-to-OCI output policy](../SKILL.md#consume-runtime-and-debug-tars-directly-for-oci)
-before proposing producer work. Group source-build and runtime/debug TAR support
+before proposing producer work. Group source-build and runtime/debug TAR or Python wheel support
 by component: libnl3's TARs belong in one dependency PR and libyang3's in another.
 Keep each producer's source support, required outputs, tests and documentation
 together. Add a DEB producer only for a separately scoped consumer requiring that
@@ -262,12 +262,13 @@ that either example implements every completion check above.
 ## Detailed assembly and producer interfaces
 
 Apply the [OCI procedure](oci.md) together with this template: inventory inherited project runtime
-components; consume each owner's direct installation TAR, matching symbols and metadata; include
-transitive source-package dependencies; select pinned APT data/control and external wheels through
+components; consume native runtime TARs and matching symbols, and install source-built Python wheels
+through shared wheel_layer; include transitive runtime dependencies and metadata. Select pinned APT
+data/control and external wheels through
 their managed interfaces; validate architecture, order, collisions, installation state and real
 services. The [image examples](image-assembly-examples.md) also cover rootfs, initramfs, kernel boot
-inputs and final image formats. Source wheels use the [direct installation interface](install-interfaces.md);
-fixed external wheels may use wheel_layer. A package format does not determine source ownership.
+inputs and final image formats. Source-built and external wheels share the [wheel installation interface](install-interfaces.md);
+wheel_layer produces the TARs consumed by OCI/rootfs. A package format does not determine source ownership.
 
 Acceptance compares the analyzed Make contract with actual Bazel actions and installed outputs, then
 compares the runtime and debug archives with Make's through the [equivalence check](make-bazel-equivalence.md).

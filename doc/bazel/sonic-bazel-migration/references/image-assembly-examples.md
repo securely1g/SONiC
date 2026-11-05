@@ -5,7 +5,7 @@ Obtain inputs through [image analysis](image-recipes.md). Example images/example
 | Alias | Required interface |
 | --- | --- |
 | skeleton/system/source/configuration/install_effects | Ordered single TARs; system locked data/control, source metadata |
-| python_runtime | Checked complete installation TAR |
+| python_runtime | Checked complete TAR from source-owner and locked external wheels installed by shared wheel_layer |
 | boot_stage/kdump_stage | Stage-specific TAR with early tools/libraries/config/hooks |
 | kernel_runtime/boot/metadata | Runtime TAR, boot tree, schema-1 metadata |
 | busybox_applets | Target producer JSON |
@@ -18,7 +18,7 @@ Use cquery for single TAR/tree contracts. Example values are AMD64/BIOS/4096 MiB
 
 ## rootfs and SquashFS
 
-Confirm install_effects contains contractual accounts/services/caches/state and all runtime TARs, then declare ordered inputs:
+Confirm install_effects contains contractual accounts/services/caches/state and all runtime TARs, then declare ordered inputs. The `python_runtime` alias must depend on complete closure, lock freshness and installed-metadata checks from [the Python runtime workflow](dependency-locking.md#pip-runtime-lock-generation-example). A plain `wheel_layer` TAR does not provide those checks; complete the shared wheel metadata adapter described there before claiming this example is ready to build.
 
 ```starlark
 load("//tools/bazel/image:defs.bzl", "sonic_squashfs")

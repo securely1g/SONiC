@@ -26,7 +26,7 @@ Trace `rules/*.mk`, platform rules, `slave.mk` and invoked sub-builds to identif
 - `repositories`: URLs, commits, submodule versions and local modifications.
 - `write_scope`: planned files/directories, used to check concurrent writing conflicts.
 
-For undownloaded sources, record their declarations, expected directories and current readable scope. Component type and registered production objects determine task identity; artifact lists retain co-production relationships. Original package names, formats and co-production are analysis facts. By default, map required contents to OCI-consumable TARs and native interfaces; produce final DEBs only when explicitly requested. A shared .mk file or source directory does not make independent production objects one component.
+For undownloaded sources, record their declarations, expected directories and current readable scope. Component type and registered production objects determine task identity; artifact lists retain co-production relationships. Original package names, formats and co-production are analysis facts. Map native contents to OCI-consumable TARs and native interfaces; map Python distributions to owner wheels installed through shared wheel_layer; produce final DEBs only when explicitly requested. A shared .mk file or source directory does not make independent production objects one component.
 
 ## Analysis record contents
 

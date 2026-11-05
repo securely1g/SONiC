@@ -1,6 +1,6 @@
 # SONiC component dependencies and scheduling
 
-Read the [shared contract](common-contract.md). The helper collects SONiC dependencies across all conditional branches and generates layered component tasks. Types are DEB, WHEEL, DOCKER, KVM_IMAGE, ONE_IMAGE and RAW_IMAGE. Types/products preserve Make production relationships for identification/scheduling; current delivery contracts select Bazel formats. Default output is OCI-consumable TAR, including DEB-classified components. Registered objects and explicit co-production determine identity; independent objects in one .mk may be distinct components.
+Read the [shared contract](common-contract.md). The helper collects SONiC dependencies across all conditional branches and generates layered component tasks. Types are DEB, WHEEL, DOCKER, KVM_IMAGE, ONE_IMAGE and RAW_IMAGE. Types/products preserve Make production relationships for identification/scheduling; current delivery contracts select Bazel formats. Native components default to OCI-consumable TARs, including DEB-classified components; Python distributions produce wheels installed into TARs by shared wheel_layer. Registered objects and explicit co-production determine identity; independent objects in one .mk may be distinct components.
 
 ## Invocation
 

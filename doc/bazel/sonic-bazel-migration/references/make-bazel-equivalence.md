@@ -36,7 +36,7 @@ changes. One run compares every pair the checker discovers:
 
 Do not add a DEB package definition only to feed the checker; the
 [DEB approval rule](../SKILL.md#require-approval-before-adding-new-deb-package-definitions)
-still applies. Component and registry PRs that deliver TARs do not change an
+still applies. Component and registry PRs that deliver wheels or TARs do not change an
 image until `sonic-buildimage` selects the new version, so the image PR that
 selects it runs the check. A Bazel output with no Make counterpart carries the
 `no-elf-equivalence` tag and a comment giving the reason; the checker reports it

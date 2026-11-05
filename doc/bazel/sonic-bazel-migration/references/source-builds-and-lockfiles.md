@@ -254,6 +254,7 @@ full SWSS/image integration.
 
 Use [dependency locking](dependency-locking.md) for the complete APT, Go ZIP, Cargo and pip commands.
 Keep canonical locks and required derived exports together. A pip environment lock depends on the
-source wheels' Requires-Dist metadata; Docker/rootfs composition selects the actual shared versions.
+source wheels' Requires-Dist metadata; Docker/rootfs composition selects the actual shared versions
+and installs those wheels through shared wheel_layer into installation TARs.
 APT uses one source and production lock per baseline with separate payload/library/tool collections.
 The existing MODULE.bazel.lock CI-artifact policy remains in force.
