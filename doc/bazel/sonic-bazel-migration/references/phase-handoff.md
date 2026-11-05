@@ -133,7 +133,7 @@ python3 "$example_evidence/check_layout.py" "$example_evidence/runtime.tar" \
 
 Save check_layout.py first. Record exits/first errors in verification. set -e stops the command group on failure; preserve failure logs. On success read real digest/manifests. Report build/layout checks separately and apply [per-configuration isolation](review-port.md#artifact-and-evidence-preservation).
 
-implementation.acceptance defines required ids; verification.checks covers the same ids, with diagnostics required=false. Derive Markdown from the same records and link evidence rather than maintaining conflicting conclusions.
+Each implementation deliverable's acceptance list defines required ids. verification.checks must cover every required id, and checks outside that set must explicitly declare required=false. Reject omitted required ids, required ids marked optional, and additional mandatory or unclassified checks before accepting completed/reused. Every required check must pass; explicitly optional diagnostics are reported separately. Derive Markdown from the same records and link evidence rather than maintaining conflicting conclusions.
 
 ## 2. Update status and render
 

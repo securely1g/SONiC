@@ -127,6 +127,10 @@ def completion(task, task_directory):
     missing = required - by_id.keys()
     if missing:
         raise ValueError(f'Missing mandatory acceptance checks: {sorted(missing)}')
+    unexpected = {key for key, check in by_id.items()
+                  if key not in required and check.get('required') is not False}
+    if unexpected:
+        raise ValueError(f'Checks outside mandatory acceptance must be explicitly optional: {sorted(unexpected)}')
     for key in sorted(required):
         check = by_id[key]
         if check.get('required') is False or check.get('status') != 'PASS' or check.get('exit_code') != 0:

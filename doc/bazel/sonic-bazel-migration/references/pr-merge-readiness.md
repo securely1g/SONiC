@@ -192,8 +192,10 @@ inputs moved, reassess them.
 Ready for review is not merge approval. Required CI may still be pending or
 unsuccessful when dependency provenance passes; required checks and existing
 merge requirements continue to gate merging. For affected image and DEB PRs,
-the [Make equivalence check](make-bazel-equivalence.md) must report no unaccepted
-differences on the current PR head before merge or migration completion. Its
+the [Make equivalence check](make-bazel-equivalence.md) must pass every pair in
+the PR's required comparison set on the current head before merge or migration
+completion. Unrelated pairs remain separately reported diagnostics under that
+procedure. Its
 status alone must not keep or return a PR to Draft. Keep CodeQL informational under
 [the CodeQL policy](../SKILL.md#keep-codeql-informational), report its real results,
 and do not make its status alone a reason to block merging or return a PR to

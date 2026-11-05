@@ -26,13 +26,21 @@ Ready for review or return a PR to Draft; retain the other
 
 Changes to their BUILD files, module versions or overrides,
 APT locks, base images, configuration files and Make handoff count as output
-changes. One run compares every pair the checker discovers:
+changes. Before running the check, record the required comparison set for the
+PR, with output labels and the changes that affect them:
 
-- each Bazel image archive, runtime and `-dbg`, against Make's archive of the
+- each affected Bazel image archive, runtime and `-dbg`, against Make's archive of the
   same name in `target/`, such as `target/docker-sysmgr.gz` and
   `target/docker-sysmgr-dbg.gz`;
-- each approved `sonic_deb` target against Make's package of the same file name
+- each approved `sonic_deb` target explicitly in scope for this PR against Make's package of the same file name
   in `target/debs/<distribution>/`.
+
+Discovery may find additional image or DEB pairs. Report these as diagnostics,
+separately from the required set. Optional or unrelated DEB production and
+package-only checks do not gate an OCI PR that consumes TARs. Approval of a DEB
+producer alone does not make its output part of every image PR's acceptance.
+Every required pair must be present and pass; classify scope before inspecting
+results, and retain all diagnostic failures in the report.
 
 Do not add a DEB package definition only to feed the checker; the
 [DEB approval rule](../SKILL.md#require-approval-before-adding-new-deb-package-definitions)
@@ -72,6 +80,16 @@ as excluded instead of comparing it.
 BLDENV=trixie ./tools/bazel/test_equivalence.sh
 ```
 
+This is the pinned upstream invocation, which compares all discovered pairs
+and fails on any unaccepted difference. Before using it as this skill's merge
+gate, inspect the selected checker's scope-selection and reporting interfaces.
+Use those interfaces, or extend the checker during its port, to carry the
+explicit required set and report unrelated pairs separately. Do not treat the
+unfiltered command's aggregate exit code as a scoped OCI gate or suppress it
+with `|| true`. Verify that missing or failing required pairs fail the gate,
+while unrelated failures remain visible diagnostics. This skill documents the
+required adaptation; it does not supply an already adapted checker.
+
 The script:
 
 1. runs `equivalence_checker.py --print-make-paths` to list the Make files that
@@ -81,7 +99,8 @@ The script:
 3. runs `equivalence_checker.py` in the SONiC slave container. It builds the
    Bazel side, compares every pair, prints a summary, writes
    `target/equivalence-report.json`, and exits non-zero if any difference is
-   not accepted.
+   not accepted. A scoped port must retain comparison results for all pairs and
+   derive its gate result from the explicit required set above.
 
 Run the steps separately when debugging: `--print-sources` lists the pairs and
 `--skip-build` reuses existing Bazel outputs. `elfcompare` calls `abidiff` for
@@ -152,9 +171,11 @@ inputs listed above. In the PR description, record the checker revision,
 distribution and architecture, the compared pairs from `--print-sources`, the
 printed summary with the count for each accepted rule, and each new or changed
 rule with its reason. Keep `target/equivalence-report.json` with the PR
-evidence, for example as a CI artifact. A run that reports `FAIL`, skips a
-pair, or uses a dirty tree, Bazel-built Make archives or different sources does
-not satisfy this requirement.
+evidence, for example as a CI artifact. Record required and diagnostic pairs
+separately, with a scoped gate result and the unfiltered aggregate result when
+available. Missing, skipped or failing required pairs do not satisfy acceptance.
+Diagnostic failures remain reported separately. A dirty tree, Bazel-built Make
+archives or different sources invalidates the affected comparison evidence.
 
 The sonic-net PR also adds an Azure pipeline for the check,
 [`.azure-pipelines/make-bazel-binary-equivalence.yml`](https://github.com/sonic-net/sonic-buildimage/blob/54eb0632ba9dc93e784665280ce4ec19c122cef1/.azure-pipelines/make-bazel-binary-equivalence.yml),
@@ -202,10 +223,14 @@ separate PR that image PRs depend on:
   pinned compareELF archive and patch in `equivalence.MODULE.bazel` with the
   root `MODULE.bazel` `include()`, and the helpers it imports from
   `tools/bazel/registry/registry_lib.py`.
-- Keep the comparison, rule format, exit status, and the clean-tree and
+- Keep the comparison, rule format, and the clean-tree and
   Bazel-disabled guards. Start `rules.py` with only `excluded-by-tag`, and add
   other rules with this repository's evidence, even when the sonic-net PR
   accepts the same difference.
+- Add or reuse explicit pair selection and reporting for the required set.
+  Fail the scoped gate for missing, skipped or failing required pairs, while
+  reporting unrelated pairs as diagnostics. Keep the upstream all-pairs mode's
+  exit semantics unchanged. Validate both modes when adapting the checker.
 - Adapt the parts that discover pairs and tools:
 
 | sonic-net/sonic-buildimage#28005 | This repository |
