@@ -57,14 +57,18 @@ Version-2 apt.import_lock supplies data/control only, without library export fil
 From infra root with pinned BAZEL:
 
 ```sh
-python3 apt/lock.py update --bazel "$BAZEL"
-python3 apt/lock.py check
+bazel run //apt:lock -- update --bazel "$BAZEL"
+bazel run //apt:lock -- check
 ```
+
+The `//apt:lock` entry point ([build-infra #87](https://github.com/securely1g/sonic-build-infra/pull/87))
+runs the updater under the hermetic interpreter per the
+[declared-tools policy](../SKILL.md#use-native-bazel-actions-and-declared-tools).
 
 For verified local registry, pass both endpoints in order:
 
 ```sh
-python3 apt/lock.py update --bazel "$BAZEL" \
+bazel run //apt:lock -- update --bazel "$BAZEL" \
   --registry "file://$REGISTRY_SOURCE" \
   --registry https://bcr.bazel.build/ \
   --bazel-startup-option=--batch \
