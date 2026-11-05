@@ -46,7 +46,7 @@ At the top level, record `task_id`, `repository_state`, `required_conditions`, `
 | `generated_files` | Generators, inputs, outputs, commands, stages and conditions for intermediate sources, headers and configuration |
 | `build_steps` | Actual prepare/configure/compile/install/package entry points, commands, environments and output handoffs |
 | `compile_commands` | Compiler/linker selection and command formation, global/target options, override/append order, directories, environment, response-file formation and branches |
-| `host_tools` | Build-time tools, versions, actual origins, stages, execution dependency closure and planned Bazel targets; target versus exec roles; existing-rule/BCR/source selection and base-tool contract |
+| `host_tools` | Build-time tools, versions, actual origins, stages, execution dependency closure and planned Bazel targets; target versus exec roles; BCR/shared/source selection, fallback reasons and base-tool contract |
 | `dependency_interfaces` | Per-consumer headers/sets, generated headers, include names/search order; library names, static/shared forms, SONAME, link options/order; origin, role, version and use site |
 
 Keep generated intermediates in `generated_files` and final deliverables in `outputs`, connected by mappings. Put large manifests in `evidence/`, with relative paths and provenance in JSON and linked conclusions in the report. Disk enumeration and keyword matches are clues; final sources/options must be tied to targets and effective rules.
@@ -65,7 +65,7 @@ Check origins, ordering, conditions and input trees with [source and patch prepa
 
 For genuinely indeterminate rules, continue along the invocation chain and identify the exact expression, missing input or unreadable file and its effect. Report concrete blockers, continue independent work and retain incomplete status. A status change does not resolve a rule question.
 
-Retain original host-tool origins as facts. Hand off preferred existing Bazel rules, versions, execution platforms and input closures. If unsuitable, record BCR investigation and source-build selection rationale. Pinned DEB extraction may be reused. Component steps still map to native generation, compile, link and packaging actions.
+Retain original host-tool origins as facts. Apply the [BCR-first tool selection order](../SKILL.md#use-native-bazel-actions-and-declared-tools): compatible maintained BCR rulesets/toolchains, then existing project/shared tools, then pinned source builds. Hand off selected versions, execution platforms and input closures; record BCR modules/versions checked and the reason for each fallback. Pinned DEB extraction remains allowed under this order. Component steps still map to native generation, compile, link and packaging actions.
 
 ## Dependency locking inputs
 

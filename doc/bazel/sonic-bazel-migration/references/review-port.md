@@ -79,7 +79,7 @@ Preserve evidence for reproducibility. Reuse valid unaffected equivalence eviden
 
 ## Native builds and host-tool acceptance
 
-Inspect BUILD/helpers/actions for native generation/compile/link/packaging; reject ordinary foreign-build wrappers. Document kernel/special pipeline reasons/steps/boundaries and explicit approvals for other exceptions. Tool provenance remains independently checked. Inspect versions/origins/producer labels/exec platforms/closure and priority existing->BCR->source. Pinned DEB tools are allowed but version/function mismatches still fail. macOS is outside default scope. Separate target libraries/image packages/host tools and native-build acceptance.
+Inspect BUILD/helpers/actions for native generation/compile/link/packaging; reject ordinary foreign-build wrappers. Document kernel/special pipeline reasons/steps/boundaries and explicit approvals for other exceptions. Tool provenance remains independently checked. Inspect versions/origins/producer labels/exec platforms/closure and the [BCR-first priority](../SKILL.md#use-native-bazel-actions-and-declared-tools): compatible maintained BCR rulesets/toolchains -> existing project/shared tools -> pinned source builds. Verify the recorded BCR modules/versions and reasons for falling back. Pinned DEB tools remain allowed under this order, but version/function mismatches still fail. macOS is outside default scope. Separate target libraries/image packages/host tools and native-build acceptance.
 
 ## Itemized verification
 

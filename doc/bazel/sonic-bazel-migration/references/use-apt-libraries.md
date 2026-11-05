@@ -10,7 +10,7 @@ Read the [shared contract](common-contract.md). Use for Debian files, compilatio
 | Compilation/linking | Library CcInfo, headers/include/link contexts | Target deps |
 | Host tools | Executable/launcher/FilesToRunProvider/runfiles | Exec tools or executable=True,cfg=exec |
 
-Share sources/package identities while exposing separate interfaces. Reuse DEBs where suitable without confusing target libraries, exec runtime and image payload/CcInfo. See [assembly](#pass-package-files-to-docker-and-rootfs), [libraries](#1-reuse-shared-apt-collections), [tools](#consume-host-tools). Follow [tool priority](../SKILL.md#use-native-bazel-actions-and-declared-tools): existing, BCR, then sources; existing pinned DEB tools are allowed. Keep platform/role declarations separate.
+Share sources/package identities while exposing separate interfaces. Reuse DEBs where suitable without confusing target libraries, exec runtime and image payload/CcInfo. See [assembly](#pass-package-files-to-docker-and-rootfs), [libraries](#1-reuse-shared-apt-collections), [tools](#consume-host-tools). Follow [tool priority](../SKILL.md#use-native-bazel-actions-and-declared-tools): compatible maintained BCR rulesets/toolchains, then existing project/shared tools, then pinned sources. Record fallback reasons; existing pinned DEB tools remain allowed under this order. Keep platform/role declarations separate.
 
 ## Global source configuration
 
@@ -84,7 +84,7 @@ Choose extraction versus real installation under [OCI](oci.md#5-choose-installat
 
 ## Consume host tools
 
-Prefer public infra tools such as build_tools:bison. Producers lock exec package identity, assemble runtime from data and expose launcher/loader/libraries/interpreter/templates/subtools. Follow [tool recipes](tool-recipes.md#bison-and-flex) and [hermetic actions](hermetic-tools.md#minimal-tool-action-rule):
+When the BCR-first check selects shared APT tools, use public infra executables such as build_tools:bison. Producers lock exec package identity, assemble runtime from data and expose launcher/loader/libraries/interpreter/templates/subtools. Follow [tool recipes](tool-recipes.md#bison-and-flex) and [hermetic actions](hermetic-tools.md#minimal-tool-action-rule):
 
 ```starlark
 genrule(

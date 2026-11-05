@@ -53,7 +53,9 @@ it as an automatic blocker. If the requested migration unit is protobuf itself,
 importing Debian's protobuf library does not implement that source migration;
 if the requested unit is DASH, a pinned protobuf package is an allowed dependency.
 
-Reuse compatible existing modules and shared package sets first. Put reusable
+Reuse compatible dependency modules and shared package sets instead of component-local copies.
+Execution tools follow the [BCR-first selection order](../SKILL.md#use-native-bazel-actions-and-declared-tools),
+with documented fallback reasons. Put reusable
 third-party source rules or package adapters, patches, overlays, language
 bindings, and dependency-owned tests in `sonic-bazel-registry`; SONiC-owned
 dependency source support belongs in its own repository and is then registered.

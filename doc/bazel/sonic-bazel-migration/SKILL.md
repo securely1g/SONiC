@@ -60,8 +60,8 @@ probes during migration, then native templates and platform/feature settings for
 The kernel's specialized pipeline retains its documented exception; another specialized pipeline
 requires approval for that concrete approach. Tool/runtime declaration and hermeticity still apply.
 
-Prefer maintained upstream BCR rulesets and toolchains when a compatible one provides the tool and satisfies the analyzed version/feature contract (as tar.bzl already does for archives); then compatible existing project/shared rules, then fixed source-built tools.
-Declared fixed prebuilt tools remain usable. Tools, interpreters, execution libraries, plugins,
+Prefer maintained upstream BCR rulesets and toolchains when a compatible one provides the tool and satisfies the analyzed version/feature contract (as tar.bzl already does for archives); then compatible existing project/shared rules, then pinned source-built tools. Record the BCR modules/versions checked and why each earlier option fails the required version/feature contract before falling back. Apply the [custom-module approval rule](#check-bazel-central-registry-before-custom-modules) when developing an alternative to a dependency available in BCR.
+Declared fixed prebuilt tools remain usable under this selection order. Tools, interpreters, execution libraries, plugins,
 templates and data are execution inputs; headers and linked libraries for the output stay in target
 configuration. Reuse GNU Coreutils/Bash only under the project's established base-tool contract.
 
@@ -282,7 +282,7 @@ downstream integration, retaining generated locks and receipts. Follow the
 
 ## Separate build tools from the target sysroot
 
-Classify dependencies by how they are consumed. Programs run by build actions, together with their private runtime libraries and data, belong to the execution side. The target system ABI foundation belongs to the compiler's sysroot; ordinary component and third-party libraries remain explicit target dependencies, whether source-built or imported from pinned packages. Prefer a compatible existing Bazel rule or toolchain; when pinned Debian packages supply execution tools, reuse or extend `sonic-build-infra`'s shared `build_tools` set instead of maintaining a component-local downloader and package lock.
+Classify dependencies by how they are consumed. Programs run by build actions, together with their private runtime libraries and data, belong to the execution side. The target system ABI foundation belongs to the compiler's sysroot; ordinary component and third-party libraries remain explicit target dependencies, whether source-built or imported from pinned packages. Apply the [BCR-first tool selection order](#use-native-bazel-actions-and-declared-tools); when pinned Debian packages supply execution tools, reuse or extend `sonic-build-infra`'s shared `build_tools` set instead of maintaining a component-local downloader and package lock.
 
 <a id="use-one-shared-build-tools-package-set"></a>
 

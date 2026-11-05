@@ -36,7 +36,7 @@ Queries prove declarations, not executable closure. Check exec actions. This tab
 
 ### Invoke existing tools
 
-Prefer the public infra executables above. genrule uses tools; custom rules declare executable=True,cfg="exec" and pass DefaultInfo.files_to_run. A single-tool action may use that provider as executable; see the [minimal action](hermetic-tools.md#minimal-tool-action-rule). Drivers invoking several tools pass tool.executable as the path and the complete provider in tools. A bare File omits execution dependencies. Target headers/libraries remain target-configured consumer dependencies.
+Use the public executable/toolchain selected by the [BCR-first order](../SKILL.md#use-native-bazel-actions-and-declared-tools). The infra entries above locate existing APIs; they do not take priority over compatible maintained BCR tools. genrule uses tools; custom rules declare executable=True,cfg="exec" and pass DefaultInfo.files_to_run. A single-tool action may use that provider as executable; see the [minimal action](hermetic-tools.md#minimal-tool-action-rule). Drivers invoking several tools pass tool.executable as the path and the complete provider in tools. A bare File omits execution dependencies. Target headers/libraries remain target-configured consumer dependencies.
 
 ### Add source tools or component generators
 
