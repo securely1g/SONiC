@@ -130,7 +130,7 @@ Apply this section to native ELF artifacts that require source-level debugging.
 - Build the debug variant from the same runtime image and add matching symbols and tools.
 - For imported Make-built or prebuilt content, provide symbols from the matching producer build or record the coverage gap.
 - Validate the user-facing Make/Bazel entry point required by the current migration phase.
-- Run the [Make equivalence check](make-bazel-equivalence.md) on the runtime and debug archives, building Make's side from the same sources with the Bazel path disabled. Fix each difference or name it in a rule that states its cause; a component TAR PR records the image comparison as pending.
+- Before merge or migration completion, run the [Make equivalence check](make-bazel-equivalence.md) on the current PR head's runtime and debug archives, building Make's side from the same sources with the Bazel path disabled. Fix each difference or name it in a rule that states its cause; a component TAR PR records the image comparison as pending.
 - Follow the Docker template's locked APT selection, base-collision, installed-state, runtime/debug ancestry, archive and producer-transition checks; distinguish structural checks from actual image and service validation.
 
 **Completion evidence:** project runtime source coverage, consuming-image behavior, package selection, and debugger lookup are verified in the actual image, and its archives pass the Make equivalence check. Record explicit narrower user scope and any remaining Make producers; image assembly or installer CI alone does not complete a default OCI migration.
@@ -154,7 +154,7 @@ Apply this section to native ELF artifacts that require source-level debugging.
 | Required outputs | Explicit target labels and package formats |
 | Migration boundary | Source compilation, wheel/package production, image assembly or binary import; remaining producers |
 | Validation | Tests, runtime/package checks, and service requirements |
-| Make equivalence | Checker revision, compared pairs, summary with accepted-rule counts and no unaccepted differences, and report location |
+| Make equivalence | Tested PR head, checker revision, compared pairs, summary with accepted-rule counts and no unaccepted differences, and report location |
 | Analysis | Analyzer jobs and source-coverage result |
 | Auto-merge | Repository setting, target branch, required checks, bypass permissions, and PR eligibility evidence |
 | Artifacts | Locations, checksums, and matching debug information |
@@ -172,5 +172,5 @@ Apply this section to native ELF artifacts that require source-level debugging.
 - [ ] Use a shared APT source and lock for payloads, target libraries and execution tools; preserve existing package pins.
 - [ ] Keep the old public rule contract at each PR boundary; test same-PR producer/consumer changes together.
 - [ ] Run [contract-based acceptance](review-port.md), preserve exact inputs/artifacts and record PASS/FAIL/NOT_RUN/BLOCKED by configuration.
-- [ ] Pass the [Make equivalence check](make-bazel-equivalence.md) for delivered image archives and approved DEBs, with every accepted difference named in `rules.py`.
+- [ ] Before merge or migration completion, pass the [Make equivalence check](make-bazel-equivalence.md) on the current PR head for delivered image archives and approved DEBs, with every accepted difference named in `rules.py`. Missing, pending, failed or stale equivalence results alone do not block Ready for review or return a PR to Draft.
 - [ ] Keep local worktree/base-branch setup out of the technical component instructions; use the original workspace and PR policies where applicable.

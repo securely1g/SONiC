@@ -376,7 +376,7 @@ While Make still builds an image or DEB, its Bazel replacement must ship the sam
 - Build the same source revisions and patches on both sides. Resolve a mismatch between Make's checkout and Bazel's selected source before comparing.
 - Prefer fixing a difference to accepting it. A rule names the affected paths, and for package version drift both versions, so that a new difference still fails. Do not add a DEB package definition only to feed the checker.
 - Keep the layout, permission, installed-runtime, service and debug checks; the checker compares contents, not modes, owners or behavior.
-- Do not mark the PR Ready for review or report the migration complete until a run on its current head reports no unaccepted differences. Record the summary and keep `target/equivalence-report.json` with the validation evidence.
+- Require a run on the PR's current head with no unaccepted differences before merge or reporting the migration complete. Missing, pending, failed or stale equivalence results alone must not prevent Ready for review or return a PR to Draft. Record the summary and keep `target/equivalence-report.json` with the validation evidence.
 
 If `sonic-buildimage` lacks the checker, port it from that PR in a separate prerequisite PR instead of writing another comparator. Follow [the equivalence procedure](references/make-bazel-equivalence.md) for commands, rule examples, the docker-sysmgr example and porting notes.
 

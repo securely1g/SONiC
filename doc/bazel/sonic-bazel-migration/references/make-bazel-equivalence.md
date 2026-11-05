@@ -18,9 +18,13 @@ layout, installed-runtime, service and debug checks.
 
 ## When to run it
 
-Run the check in `sonic-buildimage` before a PR that adds or changes Bazel
-image or DEB outputs becomes Ready for review, and before reporting such a
-migration complete. Changes to their BUILD files, module versions or overrides,
+Run the check in `sonic-buildimage` before merging a PR that adds or changes
+Bazel image or DEB outputs, and before reporting such a migration complete.
+Missing, pending, failed or stale equivalence results alone must not prevent
+Ready for review or return a PR to Draft; retain the other
+[Draft/Ready requirements](pr-merge-readiness.md).
+
+Changes to their BUILD files, module versions or overrides,
 APT locks, base images, configuration files and Make handoff count as output
 changes. One run compares every pair the checker discovers:
 

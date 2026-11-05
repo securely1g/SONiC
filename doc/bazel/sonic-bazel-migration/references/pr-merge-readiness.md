@@ -170,6 +170,7 @@ Apply the scope assessment above before this table:
 | Temporary CI branch-filter cleanup is still needed after retargeting a stack | Draft |
 | Temporary branch- or PR-specific checks or skips remain in the resulting code | Draft |
 | The PR removes branch-specific checks or skips and none remain | No Draft hold from their deleted diff lines; assess the remaining applicable requirements |
+| Required Make equivalence results are missing, pending, failed or stale | No Draft hold from equivalence alone; a passing run on the current head is required before merge |
 | Dependency provenance, registry endpoint and any registry base/source requirements pass, and applicable CI filter/exception cleanup is complete | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
 
 An upstream merge triggers reassessment; it does not make a consumer ready
@@ -190,7 +191,10 @@ inputs moved, reassess them.
 
 Ready for review is not merge approval. Required CI may still be pending or
 unsuccessful when dependency provenance passes; required checks and existing
-merge requirements continue to gate merging. Keep CodeQL informational under
+merge requirements continue to gate merging. For affected image and DEB PRs,
+the [Make equivalence check](make-bazel-equivalence.md) must report no unaccepted
+differences on the current PR head before merge or migration completion. Its
+status alone must not keep or return a PR to Draft. Keep CodeQL informational under
 [the CodeQL policy](../SKILL.md#keep-codeql-informational), report its real results,
 and do not make its status alone a reason to block merging or return a PR to
 Draft. Report validation accurately and complete the required checks. This rule
