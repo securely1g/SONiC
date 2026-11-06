@@ -190,6 +190,11 @@ python3 ci/registry_ci.py sync-module --module NAME --version VERSION
 python3 ci/registry_ci.py sync-module --module NAME --version VERSION --check
 ```
 
+Run `registry_ci.py` under a hermetic interpreter per the
+[declared-tools policy](../SKILL.md#use-native-bazel-actions-and-declared-tools); the registry
+checkout is not a Bazel workspace, so use another workspace's interpreter or a dedicated entry
+point rather than a worker-provided `python3`.
+
 The generator creates overlay/MODULE and updates its checksum. Registrants maintain all other manifests/checksums. Existing version-patch entries retain that mechanism; choose one appropriate MODULE-maintenance route.
 
 ## 6. Integrity
