@@ -557,6 +557,13 @@ Every registry version-update PR must link a downloadable, complete patch from t
 
 ## Set PR draft state from dependency provenance
 
+Require GitHub `MERGEABLE` for the current PR head against its actual target tip
+before setting Ready or confirming readiness. Follow the
+[merge-conflict check](references/pr-merge-readiness.md#check-for-merge-conflicts)
+on quiet Ready PRs as well as promotions. That procedure may preserve an existing
+Ready flag while GitHub reports `UNKNOWN`; preserving the flag does not confirm
+readiness.
+
 Assess dependency readiness against the PR's changes and actual requirements. **Unchanged, unrelated dependencies inherited from maintained `master` or `main` must not keep a PR in Draft.** Compare the current diff and selected inputs with that baseline and record why an inherited dependency is unrelated. A repository-wide CI job running on every PR does not by itself make its dependencies relevant to the change. See [readiness scope](references/pr-merge-readiness.md#scope-readiness-to-the-proposed-change).
 
 Keep a PR in Draft when a dependency it introduces, changes, or needs for its proposed behavior or validation is unlanded or its provenance cannot be verified. Unmerged stacked prerequisites remain in scope. This applies to direct pins, resolved registry sources, submodules, overrides, external CI checkouts and consumed artifacts. A merged prerequisite PR or an identical tree does not make its former PR-head commit a landed dependency. The PR's own implementation and its test checkout are not external dependencies. Third-party releases retain their existing version policy.
