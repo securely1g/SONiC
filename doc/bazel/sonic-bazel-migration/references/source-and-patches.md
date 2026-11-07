@@ -2,6 +2,8 @@
 
 Read the [shared contract](common-contract.md). For online/local sources, patches or overrides, derive the chain original inputs -> extraction/mapping -> ordered patches -> necessary overlays -> native build from Make analysis. Repository rules manage preparation; compilation retains native-build constraints.
 
+Before acquiring or changing an input, apply the [download-location policy](download-locations.md): use the approved private mirror for Debian inputs and GitHub for other mirrored inputs. Any other new location, including acquisition-time or automatic fallback endpoints, needs explicit approval.
+
 ## 1. Source and patch ownership
 
 - New SONiC fixes belong in component repositories and new registered source commits. Preserve existing Make patch directories/series as real inputs and record final-source relationships.
