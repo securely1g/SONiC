@@ -303,6 +303,16 @@ contract](references/build-tools-and-sysroot.md), [APT interfaces](references/us
 [lock refresh procedure](references/dependency-locking.md). Preserve existing locked versions and
 checksums when extending collections under unchanged sources; review only the required new closure.
 
+## Use GitHub or the approved private mirror for downloads
+
+Use the existing approved private mirror for Debian package inputs. For other package archives, sources and build tools that need a reliable shared download location, use GitHub. GitHub already hosts the project's source and CI; adding another public mirror would add a separate availability dependency. This is not a guarantee that GitHub downloads cannot fail.
+
+**Obtain explicit user approval before adding or using any other download location.** Apply this rule to new or changed input URLs, mirrors, automatic fallbacks, redirects and one-time acquisition used to seed a mirror, in local builds and CI. An upstream recommendation, a matching checksum or an outage does not authorize a new host. Honor an existing explicit approval within its recorded scope; do not ask again for GitHub or the already approved private mirror.
+
+Check the actual destination, not just a URL's first hostname. GitHub's verified asset-delivery endpoints may serve GitHub-hosted files; a GitHub link or redirect to an unrelated service does not make that service approved. Keep private mirror addresses and credentials out of public source, logs and release assets.
+
+Preserve input versions, exact bytes, integrity checks and provenance when changing transport. Prefer an existing upstream GitHub asset and a generic manifest/reader instead of adding a downloader for each package or republishing available bytes. Registry metadata selection still follows the registry URL policy; it does not approve arbitrary payload hosts. Apply this policy to the requested changes without sweeping unrelated inherited downloads or changing published module inputs. Follow [download locations and GitHub mirrors](references/download-locations.md), including the Cosmos example from registry #238 and its validation limits.
+
 ## Check Bazel Central Registry before custom modules
 
 Before developing a dependency module or build rules, check [Bazel Central Registry](https://registry.bazel.build/) and the dependency's upstream Bazel support. Reuse a compatible central module and validate it with the actual consumer.
