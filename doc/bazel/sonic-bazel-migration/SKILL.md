@@ -307,6 +307,8 @@ checksums when extending collections under unchanged sources; review only the re
 
 Use the existing approved private mirror for Debian package inputs. For other package archives, sources and build tools that need a reliable shared download location, use GitHub. GitHub already hosts the project's source and CI; adding another public mirror would add a separate availability dependency. This is not a guarantee that GitHub downloads cannot fail.
 
+When a GitHub download fails, monitor the build and rerun only the failed jobs on the same commit once the asset is available. For a failed download from another public origin, reuse an exact GitHub release asset or [publish the verified input to GitHub](references/download-locations.md#recover-from-a-failed-download) before updating the consumer. Never search for an unapproved replacement site, use it as a fallback, or open a PR proposing it.
+
 **Obtain explicit user approval before adding or using any other download location.** Apply this rule to new or changed input URLs, mirrors, automatic fallbacks, redirects and one-time acquisition used to seed a mirror, in local builds and CI. An upstream recommendation, a matching checksum or an outage does not authorize a new host. Honor an existing explicit approval within its recorded scope; do not ask again for GitHub or the already approved private mirror.
 
 Check the actual destination, not just a URL's first hostname. GitHub's verified asset-delivery endpoints may serve GitHub-hosted files; a GitHub link or redirect to an unrelated service does not make that service approved. Keep private mirror addresses and credentials out of public source, logs and release assets.
