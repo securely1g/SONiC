@@ -7,6 +7,25 @@ another independently operated download service. Integrity and availability
 are separate: a matching hash does not make a new host approved, and GitHub can
 still be unavailable.
 
+## Recover from a failed download
+
+Check the failing URL and its redirect chain in the job log.
+
+- **GitHub asset or verified GitHub delivery endpoint.** Keep the commit and URL
+  in place. Monitor the build and retry only the failed jobs once the download
+  is available again. If the asset remains unavailable or fails its integrity
+  check, report the URL and error. Do not publish a duplicate or open a PR to
+  change hosts.
+- **Other public origin.** Look for the exact pinned input in an upstream GitHub
+  release. If it is missing, follow the [publication procedure](#reuse-one-github-mechanism)
+  using verified local bytes or an explicitly authorized origin. Verify the
+  published asset by downloading it back before pointing the consumer at GitHub.
+  If the bytes cannot be obtained this way, report the missing input. Never
+  search for, use, or submit a PR for an unapproved replacement mirror.
+
+Debian packages on the approved private mirror stay on that mirror. Keep its
+addresses, credentials and private payloads out of GitHub releases.
+
 ## Apply the approval boundary
 
 - Before adding or using a location outside GitHub and the existing approved
