@@ -54,21 +54,30 @@ Version-2 apt.import_lock supplies data/control only, without library export fil
 3. Review new roots/transitives/architectures/origins/versions/hashes/edges/file maps, preserving fixed-source and unrelated identities. Failed resolution preserves production locks.
 4. Run read-only checks and three-role consumers/staleness gates. Normal builds preserve lock digests. Deliver requests/sources/lock/consumption together; generated labels are not a second version list.
 
-From infra root with pinned BAZEL:
+After editing `apt/requests.json` or the approved sources, regenerate the lock from the infra
+checkout root. The root Bazel workspace imports the previous lock and rejects its stale inputs
+before the updater can run. Set `BOOTSTRAP_PYTHON` to the absolute path of a pinned interpreter
+provisioned independently of that workspace and `BAZEL` to the absolute path of the selected
+Bazel executable. The updater invokes Bazel in its isolated resolver workspace.
 
 ```sh
-bazel run //apt:lock -- update --bazel "$BAZEL"
-bazel run //apt:lock -- check
+"$BOOTSTRAP_PYTHON" apt/lock.py update --bazel "$BAZEL"
 ```
 
-The `//apt:lock` entry point ([build-infra #87](https://github.com/securely1g/sonic-build-infra/pull/87))
-runs the updater under the hermetic interpreter per the
-[declared-tools policy](../SKILL.md#use-native-bazel-actions-and-declared-tools).
-
-For verified local registry, pass both endpoints in order:
+Once the reviewed lock matches the inputs, check it through the declared interpreter in infra
+revisions that expose the [APT entry point](https://github.com/securely1g/sonic-build-infra/pull/87).
 
 ```sh
-bazel run //apt:lock -- update --bazel "$BAZEL" \
+"$BAZEL" run //apt:lock -- check
+```
+
+On earlier revisions use `"$BOOTSTRAP_PYTHON" apt/lock.py check`. This direct invocation also
+reports stale inputs inside the checker when the root workspace cannot load the target.
+
+To regenerate against a verified local registry, pass both endpoints in order.
+
+```sh
+"$BOOTSTRAP_PYTHON" apt/lock.py update --bazel "$BAZEL" \
   --registry "file://$REGISTRY_SOURCE" \
   --registry https://bcr.bazel.build/ \
   --bazel-startup-option=--batch \
