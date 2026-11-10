@@ -121,7 +121,7 @@ from success and retain the existing informational CodeQL policy.
 
 ## Remove branch-specific CI exceptions
 
-Do not mark or retain a PR as Ready while its resulting code contains temporary
+Do not mark or retain a PR as Ready while its resulting code contains
 branch-specific checks or skips. This includes branch-name, PR-number and
 equivalent special cases that add checks as well as those that skip, replace
 or weaken them. Inspect workflow conditions and the scripts they call,
@@ -168,7 +168,7 @@ Apply the scope assessment above before this table:
 | An in-scope registry selection uses a temporary endpoint or ineligible registry commit, or required entries are unavailable | Draft |
 | A registry PR proposes an unlanded or unverifiable SONiC source version, is stacked, or does not target maintained `master`/`main` | Draft |
 | Temporary CI branch-filter cleanup is still needed after retargeting a stack | Draft |
-| Temporary branch- or PR-specific checks or skips remain in the resulting code | Draft |
+| Branch- or PR-specific checks or skips remain in the resulting code | Draft |
 | The PR removes branch-specific checks or skips and none remain | No Draft hold from their deleted diff lines; assess the remaining applicable requirements |
 | Required Make equivalence results are missing, pending, failed or stale | No Draft hold from equivalence alone; a passing run on the current head is required before merge |
 | Dependency provenance, registry endpoint and any registry base/source requirements pass, and applicable CI filter/exception cleanup is complete | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
