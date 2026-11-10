@@ -5,6 +5,37 @@ scope. An unlanded dependency relevant to the proposed change keeps a PR in
 Draft, regardless of which repository owns it. Registry PRs also have the base
 requirement below. Do not rewrite published historical registry versions.
 
+## Check for merge conflicts
+
+Before promoting a PR or reassessing an existing Ready PR, read the live PR
+head, target repository and branch, current target tip, and GitHub's `mergeable`
+field. Use the PR’s actual target, including a stacked base. Repeat the check if
+the head, target repository or branch, or target tip changes. Earlier GitHub
+and local results apply only to the recorded refs.
+
+- `MERGEABLE` passes only the conflict check for those revisions. Evaluate the
+  remaining readiness requirements before promoting or confirming readiness.
+- `CONFLICTING` keeps a Draft PR in Draft. Return an already-Ready PR to Draft
+  when authorized to manage readiness. Record the conflicting revisions, resolve
+  the conflict within the task's scope, and check the resulting head against
+  the latest target before restoring Ready.
+- For `UNKNOWN`, retry the live query after GitHub recalculates. A Draft PR
+  remains Draft. If `UNKNOWN` persists for a Ready PR after bounded retries,
+  diagnose the exact current head and target-tip SHAs locally with
+  `git merge-tree --write-tree`. A reproducible local conflict warrants Draft.
+  A clean or inconclusive local result preserves the existing Ready flag while
+  readiness remains unconfirmed pending another live query. Record the result
+  and leave verification pending for a later authorized retry. A clean local
+  merge is diagnostic only; it never substitutes for GitHub `MERGEABLE`.
+  This preservation applies only to mergeability uncertainty; other Draft
+  requirements still apply.
+
+For example, a passing AMD64 build at the last PR head can coexist with a merge
+conflict introduced by a later target update. Check GitHub’s mergeability
+separately from required CI, review approvals and branch protection.
+Publishing a conflict resolution or setting Ready still follows the task’s
+existing authorization for those actions.
+
 ## Scope readiness to the proposed change
 
 Unchanged, unrelated dependencies inherited from maintained `master` or `main`
@@ -171,12 +202,13 @@ Apply the scope assessment above before this table:
 | Temporary branch- or PR-specific checks or skips remain in the resulting code | Draft |
 | The PR removes branch-specific checks or skips and none remain | No Draft hold from their deleted diff lines; assess the remaining applicable requirements |
 | Required Make equivalence results are missing, pending, failed or stale | No Draft hold from equivalence alone; a passing run on the current head is required before merge |
-| Dependency provenance, registry endpoint and any registry base/source requirements pass, and applicable CI filter/exception cleanup is complete | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
+| GitHub reports `UNKNOWN` | Draft remains Draft. For Ready, retry and diagnose the exact refs locally: a reproducible conflict warrants Draft; a clean or inconclusive result preserves the existing Ready flag while readiness remains unconfirmed pending retry. Other Draft requirements still apply. |
+| GitHub reports `MERGEABLE` for the current head and target tip, dependency provenance, registry endpoint and any registry base/source requirements pass, and applicable CI filter/exception cleanup is complete | Ready for review, unless the user explicitly holds the PR in Draft for another reason |
 
 An upstream merge triggers reassessment; it does not make a consumer ready
 while an in-scope dependency still selects the former PR head. A head, base or
 selected-dependency change invalidates the old assessment. Verify current inputs
-before retaining Ready for review, and return the PR to Draft if required
+before confirming readiness, and return the PR to Draft if required
 in-scope provenance cannot be established. Respect explicit user draft holds
 until they are lifted.
 
