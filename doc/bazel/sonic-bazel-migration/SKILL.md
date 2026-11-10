@@ -65,15 +65,20 @@ Declared fixed prebuilt tools remain usable under this selection order. Tools, i
 templates and data are execution inputs; headers and linked libraries for the output stay in target
 configuration. Reuse GNU Coreutils/Bash only under the project's established base-tool contract.
 
-Python that runs as part of a tool or maintenance workflow — lock updaters, registry CI helpers,
-preparation scripts — executes through Bazel's hermetic interpreters, never a worker-provided
-`python3`. Prefer a committed `py_binary` entry point (`bazel run //apt:lock -- update`); for an
-ad-hoc command, run the interpreter repository rules_python provisions from a workspace that
-registers it, for example `bazel run @python_3_11_host//:python -- "$PWD/script.py"`. Pass absolute
-paths and resolve workspace files through `BUILD_WORKSPACE_DIRECTORY`: `bazel run` does not execute
-from the invoking directory. A checkout that is not yet a Bazel workspace, such as the registry,
-runs its scripts through another workspace's interpreter or gains an entry point before new callers
-are documented.
+Use the declared Python interpreter for maintenance tools. Prefer a committed `py_binary`
+entry point, such as `bazel run //apt:lock -- check`. For a one-off script, use the interpreter
+from a workspace that registers it and pass the absolute script path. Use absolute paths for explicit file
+arguments and `BUILD_WORKSPACE_DIRECTORY` for defaults that belong to the invoking checkout.
+Exercise the documented entry point in CI with those defaults.
+
+A bootstrap tool must also work when the metadata it prepares is missing or stale. If loading a Bazel
+entry point would already evaluate the dependent extension, launch the tool with a pinned
+interpreter from an independent workspace or the build environment. Use this path to
+[regenerate the APT lock after editing requests or sources](references/dependency-locking.md#lock-on-each-introduction).
+Prepare
+`Cargo.Bazel.lock` before the consumer evaluates its crate extension. Follow the
+[Rust preparation order](references/source-builds-and-lockfiles.md#generate-rust-bazel-metadata-before-dependency-evaluation).
+A checkout without a Bazel workspace can also use an independently provisioned interpreter.
 
 ## Keep shared changes compatible at each PR boundary
 

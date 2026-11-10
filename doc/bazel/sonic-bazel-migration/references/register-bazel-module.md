@@ -183,17 +183,16 @@ Each version reconstructs independently from its raw archive and complete patch/
 
 ### Generate MODULE overlays for upstream without MODULE
 
-Set generated_module_overlay=true in presubmit and maintain the registered MODULE only:
+Set generated_module_overlay=true in presubmit and maintain the registered MODULE only.
+From the registry root, set `PYTHON` to the absolute path of the declared interpreter.
 
 ```bash
-python3 ci/registry_ci.py sync-module --module NAME --version VERSION
-python3 ci/registry_ci.py sync-module --module NAME --version VERSION --check
+"$PYTHON" ci/registry_ci.py sync-module --module NAME --version VERSION
+"$PYTHON" ci/registry_ci.py sync-module --module NAME --version VERSION --check
 ```
 
-Run `registry_ci.py` under a hermetic interpreter per the
-[declared-tools policy](../SKILL.md#use-native-bazel-actions-and-declared-tools); the registry
-checkout is not a Bazel workspace, so use another workspace's interpreter or a dedicated entry
-point rather than a worker-provided `python3`.
+Provision the interpreter independently of the registry entries being prepared, as described in the
+[declared-tools policy](../SKILL.md#use-native-bazel-actions-and-declared-tools).
 
 The generator creates overlay/MODULE and updates its checksum. Registrants maintain all other manifests/checksums. Existing version-patch entries retain that mechanism; choose one appropriate MODULE-maintenance route.
 
