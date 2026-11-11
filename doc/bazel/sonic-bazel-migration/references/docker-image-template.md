@@ -186,10 +186,58 @@ from source migration of its still-external producers.
 - Account for installation behavior as well as extracted package files.
   Required alternatives, symlinks, package database, caches and generated state
   need explicit inputs/actions and checks. Do not equate DEB extraction with
-  running maintainer scripts or complete package installation.
+  running maintainer scripts or complete package installation. For example,
+  Debian maintainer scripts and triggers normally run `ldconfig`, which
+  refreshes `/etc/ld.so.cache`, and `update-ca-certificates`, which creates the
+  hash links in `/etc/ssl/certs`. Reproduce such effects, and record each
+  package's installed state, in the image layer that installs the package's
+  files, so shared parents such as `docker-config-engine-*` and
+  `docker-swss-layer-*` provide them to every child. Record any effect that is
+  not reproduced as a difference from the Make image.
 - Keep startup/supervisor files, entrypoint, environment, labels, modes,
   ownership and links aligned with the supported legacy image. Make overlapping
   paths and layer order intentional and reviewable.
+
+## Build on the matching parent image
+
+Use the Bazel image that matches the Make parent as the base of both
+`apt_layer` and `oci_image`. For example, Make loads `docker-swss-layer-trixie`
+for `docker-sflow`, and the Bazel sFlow image in
+[buildimage #152](https://github.com/securely1g/sonic-buildimage/pull/152) (at `5dabb469`)
+uses `//dockers/docker-swss-layer-trixie` for both. The child adds only its own
+components' runtime TARs, APT packages that its parent does not already
+provide, and its own files and installation state. Do not rebuild or copy a
+component that a parent already ships, such as `libswsscommon` from the
+config-engine image.
+
+While a parent image is still built by Make, it remains a gap under the runtime
+source-build requirement above. Link the child's native code against the
+parent's project libraries rather than shipping a second copy, and check which
+copy each ELF loads in the final image.
+
+## Edit component files with checked transforms
+
+When a Dockerfile edits a file that a component installs, apply the edit in the
+image package: transform the component's declared file and install the result
+at the same path in a later layer. Fail when the expected text is missing or
+appears more than once, and check the installed bytes. A `sed` command or a
+plain `expand_template` substitution changes nothing, without an error, when
+the component's file no longer contains the text. Keep image-specific edits out
+of the component's registry patches, which other consumers share.
+
+For example, the `docker-sflow` Dockerfile runs:
+
+```sh
+sed -ri '/^DAEMON_ARGS=""/c DAEMON_ARGS="-c /var/log/hsflowd.crash"' \
+    /etc/init.d/hsflowd
+```
+
+The Bazel sFlow image in
+[buildimage #152](https://github.com/securely1g/sonic-buildimage/pull/152)
+applies the same edit with `expand_template` to
+`@hsflowd//src/Linux:scripts/hsflowd.deb`. Its image check requires
+`DAEMON_ARGS=""` to occur exactly once in hsflowd's runtime TAR and compares the
+installed script with the expected result.
 
 ## Register the producer and preserve the consumer
 

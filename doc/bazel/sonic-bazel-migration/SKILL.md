@@ -191,6 +191,8 @@ Pinned Debian APT packages remain allowed external dependencies; rebuilding Debi
 
 Before implementation, inventory the final runtime dependency closure and map project components to their source owners, selected features, Bazel source/package targets and actual producer. Reuse compatible owner targets; extend missing source support with its owner. Check feature parity, such as ordinary VS versus DASH-enabled Syncd, rather than assuming any similarly named target is sufficient. Follow the [Docker template's runtime dependency audit](references/docker-image-template.md#require-bazel-built-project-runtime-dependencies).
 
+Build each image on the Bazel image that matches its Make parent, without shipping the parent's components again. The [Docker template](references/docker-image-template.md#build-on-the-matching-parent-image) also covers edits to component files and installation side effects.
+
 Make may still orchestrate the rest of the VS installer and the agreed metadata/archive handoff. A successful OCI build or full installer CI does not prove that its runtime components were built by Bazel. Remaining Make-produced project runtime files are migration gaps, including inherited files; report them and do not claim this requirement complete. Honor an explicit user request for a narrower assembly/import task, and label its completion accordingly. A skill edit or read-only audit does not itself authorize migrating unrelated repositories.
 
 ### Consume runtime and debug TARs directly for OCI
@@ -244,6 +246,8 @@ Use the same native generation/compilation/install procedure for an external sou
 Debian-maintained patches, notices and installation inputs from fixed archives; keep downloaded
 originals in declared external inputs and commit only required adaptations. An upstream build-system
 wrapper is limited to an explicitly approved specialized exception, not the default source migration.
+While Make still builds the same package, keep both recipes on the same source revision and patches;
+see [Make and registry lockstep](references/external-source-packages.md#keep-make-and-registry-sources-in-lockstep).
 
 ## Keep reusable Rust libraries with their owners
 

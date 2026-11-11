@@ -41,6 +41,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Compare compiler, linker, and feature options with the baseline; document intentional differences.
 - For shared dependency changes, verify the source-to-registry-to-consumer chain and actual module resolution; prefer focused architecture checks for early feedback before expensive integration builds.
 - For an affected open registry stack, retain one unreleased candidate per module. Inventory other open module PRs and affected consumer selections; preserve published entries, recheck publication before cleanup, and remove superseded draft directories, metadata, and CI jobs together using the [draft-version workflow](shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module).
+- While Make still builds an external package, check with an automated test that its checkout and patch series match the registry entry. See [Make and registry lockstep](external-source-packages.md#keep-make-and-registry-sources-in-lockstep).
 
 **Completion evidence:** toolchain resolution and dependency analysis for each selected configuration, with remaining host dependencies identified.
 
@@ -133,6 +134,7 @@ Apply this section to native ELF artifacts that require source-level debugging.
 - Validate the user-facing Make/Bazel entry point required by the current migration phase.
 - Before merge or migration completion, run the [Make equivalence check](make-bazel-equivalence.md) on the current PR head's runtime and debug archives, building Make's side from the same sources with the Bazel path disabled. Fix each difference or name it in a rule that states its cause; a component TAR PR records the image comparison as pending.
 - Follow the Docker template's locked APT selection, base-collision, installed-state, runtime/debug ancestry, archive and producer-transition checks; distinguish structural checks from actual image and service validation.
+- Build on the Bazel image that matches the Make parent without shipping parent-owned components again, replace Dockerfile edits of component files with checked transforms, and reproduce installation effects such as `ld.so.cache` in the layer that installs the packages. See [the Docker template](docker-image-template.md#build-on-the-matching-parent-image).
 
 **Completion evidence:** project runtime source coverage, consuming-image behavior, package selection, and debugger lookup are verified in the actual image, and its archives pass the Make equivalence check. Record explicit narrower user scope and any remaining Make producers; image assembly or installer CI alone does not complete a default OCI migration.
 

@@ -242,6 +242,16 @@ Changing its source URL, archive digest, BUILD overlay or test patch belongs in
 the `.sonic.12` candidate. While `.sonic.12` remains unreleased, its inputs may
 change in place under the draft-version rule below.
 
+Two real cases:
+[registry #148](https://github.com/securely1g/sonic-bazel-registry/pull/148)
+patched published `libnl3@3.7.0.sonic.6` in place and was closed; its native
+libnl support was published, with a SONAME fix, as `3.7.0.sonic.7` in
+[registry #181](https://github.com/securely1g/sonic-bazel-registry/pull/181).
+An earlier revision (`8555644`) of
+[registry #184](https://github.com/securely1g/sonic-bazel-registry/pull/184)
+deleted `source.json` from published `sonic-fips@0.0.3-401a5d7…`; the entry is
+intact on `main`.
+
 Review both the changed paths and their role in the source recipe, and run the
 affected test coverage. Older registry CI may still reject all published-entry
 changes until this policy's implementation lands; report that prerequisite rather

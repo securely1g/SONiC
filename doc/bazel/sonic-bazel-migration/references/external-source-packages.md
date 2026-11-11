@@ -33,6 +33,22 @@ Where source reconstruction changes, compare the prepared tree with the
 distribution's normal extraction and patch application. Record revisions and
 hashes; archive checksum verification alone is not signature verification.
 
+## Keep Make and registry sources in lockstep
+
+While Make still builds a package from `src/<package>/`, its recipe and the
+registry entry describe the same source in two places. Keep them identical:
+the tag or commit that Make checks out must resolve to the commit in
+`source.json`, and the Make patch series must match the registry patches byte
+for byte and in the same order. Add an automated check, in the consuming
+repository or in registry CI, that runs when either recipe changes, and explain
+any intentional difference in the PR.
+
+For example, `src/sflow/hsflowd/Makefile` checks out tag `v2.1.26-1` and applies
+`patch/series`, while `hsflowd@2.1.26.sonic.1` fetches commit `41f10e6a…` with
+its own copies of the same two patches. They match today, but unless a check
+compares them, a moved tag or an edit to one copy makes Make and Bazel build
+different code without any failure.
+
 ## Express the build through native Bazel actions
 
 Use the [14-group analysis](analyze-make-component.md) to derive complete source/header selections,
