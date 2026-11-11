@@ -42,7 +42,7 @@ sonic_deploy_tar(
 
 Use actual TAR srcs/mtree/path mappings for libraries/resources/configuration/links. cquery verifies a single ELF rather than a target producing archives/link files too. Follow C/C++ for SONAME layout.
 
-Bazel output processing may normalize TreeArtifact permissions. Express final installation modes at the archive-metadata boundary and inspect actual TAR members; an action's chmod proves that execution stage only. Debug data modes follow the install contract. debug_symbols_tar uses root_owned_tar's optional regular_file_mode="0644" for regular files. Its default preserves original modes; directories, symlinks and hardlinks retain their respective contracts. Changes to shared archive rules require checking default-call compatibility, explicit modes and actual symbol TAR contents/build-id/debuglink pairing.
+Bazel output processing may normalize TreeArtifact permissions. Express final installation modes at the archive-metadata boundary and inspect actual TAR members; an action's chmod proves that execution stage only. Debug data modes follow the install contract. debug_symbols_tar sets regular debug-file modes to 0644 through its mtree mutation. root_owned_tar separately supports regular_file_mode="0644"; its default preserves original modes. Directories, symlinks and hardlinks retain their respective contracts. Changes to shared archive rules require checking default-call compatibility, explicit modes and actual symbol TAR contents/build-id/debuglink pairing.
 
 When DEB output is requested, sonic_deb(data=":runtime",...) reuses the TAR; see [complete examples](build-deb-with-sonic-deb.md#3-simple-runtime-and-symbols-packages). OCI/rootfs consume runtime directly, without unpacking example_deb.
 
@@ -66,13 +66,13 @@ runtime_packages(
     name = "runtime_metadata",
     control = "debian/control",
     changelog = "debian/changelog",
-    module_name = "example_component",
+    module_name = "example-component",
     packages = {"example": ":runtime"},
     visibility = ["//visibility:public"],
 )
 ```
 
-packages keys match binary packages in control; changelog source/version rules match recipes. Inspect selected implementation for default module mappings/architecture/platform support. Declare APT data/control, dependency metadata, substvars/symbols through public attributes only when needed. Consumers use generated identity/payload relationships rather than final DEBs. Per-package <name>.<package>.control single-file targets share dependency calculation/architecture/control provenance with final packaging.
+module_name matches the actual module(name = ...) exactly, independently of repository aliases. packages keys match binary packages in control; changelog source/version rules match recipes. Inspect selected implementation for default module mappings/architecture/platform support. Declare APT data/control, dependency metadata, substvars/symbols through public attributes only when needed. Consumers use generated identity/payload relationships rather than final DEBs. Per-package <name>.<package>.control single-file targets share dependency calculation/architecture/control provenance with final packaging.
 
 ## 3. Shared Python source and wheel inputs
 
@@ -128,7 +128,7 @@ Rootfs consumes the same TARs and centrally handles overwrite/modes/accounts/ser
 
 RuntimePackagesInfo transitive metadata supports native package analysis; every actual runtime TAR still needs assembly inputs. Python wheel metadata and checked locks must preserve source producer identities and wheel/TAR relationships. Consume verified shared interfaces rather than assuming wheel_layer provides PythonRuntimeInfo or that ordinary deps/oci_image install transitives. See [OCI example](oci.md#7-incremental-assembly-template).
 
-For real APT/dpkg scripts use [apt_install](oci.md#5-choose-installation-branch-and-implement-behavior). Its complete rootfs TAR replaces the root; do not overlay the old OCI base with it. Distinguish installer receipt from incremental selection. After real installation, add source TARs to an intermediate OCI, select/check again against that base, then reuse installed_packages. Retain separate identities for source TAR, fixed-distribution installation and real package-manager installation.
+For real APT/dpkg scripts use [apt_install](oci.md#5-choose-installation-branch-and-implement-behavior). Its complete rootfs TAR replaces the root; do not overlay the old OCI base with it. Distinguish installer receipt from incremental selection. After real installation, form an intermediate OCI from the complete rootfs and select/check locked APT sets against that base before adding source or Python TARs. Then assemble those layers and feed matching base/selection/source metadata to installed_packages; recheck final overwrite and metadata consistency. Retain separate identities for source TAR, fixed-distribution installation and real package-manager installation.
 
 ## 5. Acceptance
 

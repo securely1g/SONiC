@@ -29,7 +29,17 @@ Map that fact into implementation.json before coding, retaining original sources
 ```json
 {
   "task_id": "EXAMPLE",
-  "inputs": {"platform": "Actual target platform label", "features": "Default features", "repository_state": "analysis.json#/repository_state"},
+  "inputs": {
+    "source_revision": "Actual immutable source identity, including local changes when present",
+    "configuration": {
+      "os": "Actual distribution and version",
+      "toolchain": "Actual toolchain version and digest",
+      "execution_arch": "Actual execution architecture",
+      "target_arch": "Actual target architecture",
+      "features": {},
+      "dependencies": {}
+    }
+  },
   "deliverables": [{
     "contract": "analysis.json#/package_contents/value/0",
     "native_target": "//:example",
@@ -51,17 +61,28 @@ flatten(name = "installed_example", tars = ["//:example_runtime"], deduplicate =
 
 It consumes source installation TAR directly and produces an assembly TAR. Use actual [native installation](install-interfaces.md#2-native-programs-and-deb-intermediate-layers) labels/attributes and one identity for build/cquery/checks.
 
-verification.json connects expectations to actual evidence. Set PASS/FAIL/NOT_RUN/BLOCKED honestly; PASS requires executed commands and true assertions:
+verification.json connects expectations to actual evidence. It must contain its own top-level inputs object recording the source revision and effective configuration actually verified, using the same structure as implementation.json above. The inputs below illustrate the same configuration; populate them from the actual verification environment. Set PASS/FAIL/NOT_RUN/BLOCKED honestly; PASS requires executed commands and true assertions:
 
 ```json
 {
   "task_id": "EXAMPLE",
+  "inputs": {
+    "source_revision": "Actual immutable source identity, including local changes when present",
+    "configuration": {
+      "os": "Actual distribution and version",
+      "toolchain": "Actual toolchain version and digest",
+      "execution_arch": "Actual execution architecture",
+      "target_arch": "Actual target architecture",
+      "features": {},
+      "dependencies": {}
+    }
+  },
   "checks": [{
     "id": "runtime_layout",
     "required": true,
     "contract": "analysis.json#/package_contents/value/0",
     "target": "//acceptance:installed_example",
-    "configuration": "implementation.json#/inputs",
+    "configuration": "verification.json#/inputs/configuration",
     "command": ["python3", "evidence/verification/check_layout.py", "evidence/verification/runtime.tar", "evidence/verification/runtime-files.json"],
     "status": "NOT_RUN",
     "exit_code": null,
@@ -144,6 +165,17 @@ Progress fields reference phase JSON; collection still owns graph facts:
 ```json
 {
   "id": "EXAMPLE",
+  "inputs": {
+    "source_revision": "Actual immutable source identity, including local changes when present",
+    "configuration": {
+      "os": "Actual distribution and version",
+      "toolchain": "Actual toolchain version and digest",
+      "execution_arch": "Actual execution architecture",
+      "target_arch": "Actual target architecture",
+      "features": {},
+      "dependencies": {}
+    }
+  },
   "status": "in_progress",
   "analysis_status": "analysis_complete",
   "owner": "port-example",
@@ -167,7 +199,9 @@ python3 "${SKILL_DIR}/scripts/task-progress.py" render \
   --markdown /path/to/migration-records/EXAMPLE/tasks.md
 ```
 
-update changes only explicit fields for the selected id. Missing/duplicate ids or invalid statuses fail without changing the file. completed requires --verification: implementation required acceptance must be nonempty, check ids unique and covering it, all required checks PASS and references readable. reused requires valid evidence for that version. render displays current owners/status sorted by layer without recollection.
+Before completion, populate task.inputs with the intended source_revision and a nonempty configuration object. configuration requires nonempty os, toolchain, execution_arch and target_arch strings, plus features and dependencies objects (empty only when inapplicable). Record resolved dependency revisions, lock digests, relevant flags and overrides in those objects; an immutable source identity must include patches and local changes when present. implementation.inputs and verification.inputs record their actual inputs independently as full resolved objects, not pointers to mutable records. Completion requires exact equality of all three inputs objects; missing identities or mismatches fail without changing tasks.json. This is provenance matching, not proof that the referenced commands executed truthfully.
+
+update changes only explicit fields for the selected id. Missing/duplicate ids or invalid statuses fail without changing the file. completed requires --verification: implementation required acceptance must be nonempty, check ids unique and covering it, all required checks PASS and references readable. reused uses the same source/configuration and acceptance checks as completed. Legacy records without inputs must be populated from verified provenance before completion or reuse. render displays current owners/status sorted by layer without recollection.
 
 Analysis completion is not component completion. Ready code becomes pending_verification; mandatory PASS checks permit completed. Concrete resource/external obstacles become blocked with recovery conditions.
 
@@ -177,7 +211,7 @@ Collect into a fresh directory, then merge with existing tasks. EXAMPLE below il
 
 ```bash
 set -euo pipefail
-python3 "${SKILL_DIR}/scripts/build-dep-graph.py" . \
+python3 "${SKILL_DIR}/scripts/build-dep-graph.py" "$BUILDIMAGE_ROOT" \
   --component EXAMPLE --output-dir /path/to/migration-records/EXAMPLE-refresh
 python3 "${SKILL_DIR}/scripts/task-progress.py" merge \
   --tasks /path/to/migration-records/EXAMPLE/tasks.json \
@@ -194,9 +228,9 @@ After merge, synchronize graph.json/DOT before scheduling; recover consistent gr
 merge behavior:
 
 - New collection supplies identity/products/prerequisites/type/rules/sources/layer.
-- Unchanged graph facts preserve status/owners/phase references/versions/notes.
+- Unchanged graph facts and unchanged supplied build inputs preserve status/owners/phase references/versions/notes.
 - New tasks start pending_review; removed records enter retired_tasks outside active counts.
-- Changed tasks/affected consumers return to pending_review; retain historical evidence and list changes. Reassess source/configuration changes by actual impact too.
+- Changed tasks/affected consumers return to pending_review; retain historical evidence and list changes. A fresh task with explicit changed inputs replaces the intended identity and invalidates that task and its transitive consumers. The static collector supplies graph facts, not build identities: enrich fresh task inputs from current source/configuration observations before merging when those inputs may have changed. Absent fresh inputs preserve the prior identity and do not establish its freshness; review it before resuming.
 - Read/validate both inputs before atomic JSON writes; failures preserve records. Derive Markdown from successful JSON. Diagnose duplicate ids, missing prerequisites and read failures.
 
 Review changes and next prerequisites after merging. Resume from recorded source/configuration identities only when prerequisite identities/interfaces/applicable evidence satisfy requirements.
