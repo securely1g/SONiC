@@ -32,7 +32,7 @@ maps each fact to a rule, public target, installed output and required consumer 
 | Rust/Cargo, features, build scripts, native dependencies and owner libraries | [Rust](references/rust.md) |
 | Source-built Python wheels, wheel installation TARs and runtime dependencies | [Python](references/python.md) |
 | Flex, Bison, protoc, SWIG, Thrift and project generators | [Code generation](references/code-generation.md), [complete examples](references/code-generation-examples.md), [consumer tests](references/protocol-tests.md) |
-| Source identity, Debian source inputs, ordered patches and overlays | [Source preparation](references/source-and-patches.md), [module ownership](references/register-bazel-module.md) |
+| Source identity, Debian source inputs, ordered patches and overlays | [Source preparation](references/source-and-patches.md), [external source packages](references/external-source-packages.md), [module ownership](references/register-bazel-module.md) |
 | Platform/features and configure-derived headers | [Configuration](references/configuration.md), [controlled Autoconf probes](references/autoconf-probe.md) |
 | Execution tools, runfiles and declared action inputs | [Hermetic tools](references/hermetic-tools.md), [tool recipes](references/tool-recipes.md) |
 | APT payload/control, target libraries and execution tools | [APT interfaces](references/use-apt-libraries.md) |
@@ -242,8 +242,17 @@ For an individual component migration, external dependencies may be pinned APT p
 Use the same native generation/compilation/install procedure for an external source package. Read
 [external source preparation](references/external-source-packages.md) and the language route. Reuse
 Debian-maintained patches, notices and installation inputs from fixed archives; keep downloaded
-originals in declared external inputs and commit only required adaptations. An upstream build-system
-wrapper is limited to an explicitly approved specialized exception, not the default source migration.
+originals in declared external inputs and commit only required adaptations. Inspect the actual
+`#if`/`#ifdef` guards and target definitions in the pinned source before reaching for Autoconf
+probes: small C/C++ packages that check only a few `config.h` macros or compile a handful of
+translation units should generate minimal headers with `write_file` or `expand_template` and compile
+directly with `rules_cc` (as in [registry #301](https://github.com/securely1g/sonic-bazel-registry/pull/301)
+for `sflowtool` and [registry #302](https://github.com/securely1g/sonic-bazel-registry/pull/302) for
+`libpsample`). When a consumer selects an existing registry module that still wraps `configure_make`
+or `cmake` without an approved specialized exception, publish a bumped `.sonic.<N+1>` version
+migrating its overlay to native rules while preserving published versions and public target labels.
+An upstream build-system wrapper is limited to an explicitly approved specialized exception, not the
+default source migration.
 
 ## Keep reusable Rust libraries with their owners
 

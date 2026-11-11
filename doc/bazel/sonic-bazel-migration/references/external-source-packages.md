@@ -1,8 +1,8 @@
-# External source packages with upstream configure/Make
+# External source packages with native Bazel rules
 
 Use this route to recover the SONiC source and packaging inputs, then compile ordinary packages
 with [native language rules](implement-component.md). Apply the existing central-registry check.
-An upstream configure/Make wrapper is only a separately approved specialized exception.
+An upstream configure/Make/CMake wrapper is only a separately approved specialized exception.
 
 ```text
 Fixed source + packaging archives + ordered patches
@@ -50,6 +50,48 @@ Use the [native C/C++ route](native-cc.md) or the appropriate language procedure
 - Declare installation files and metadata directly, preserve modes/links/notices, and export runtime
   and matching symbol TARs. Keep optional approved DEBs separate from the compilation graph.
 
+### Derive minimal configuration headers and native targets
+
+Before running Autoconf probes or proposing a build-system exception, inspect `configure.ac`,
+`Makefile.am`, `CMakeLists.txt`, and every `#if`/`#ifdef` guard in the pinned source tree. Many
+third-party utilities and small libraries run Autotools or CMake upstream even though their Linux
+build compiles only a few files and reads one or two header defines:
+
+- **Single-binary Autotools package (`sflowtool`):** In
+  [registry #301](https://github.com/securely1g/sonic-bazel-registry/pull/301) (`8ea421ba`),
+  upstream `src/Makefile.am` compiles one translation unit (`src/sflowtool.c` plus four local
+  headers) and `src/sflowtool.c` checks only `HAVE_BYTESWAP_H` and `VERSION` from `config.h`.
+  Generating a minimal `config.h` with `@bazel_skylib//rules:write_file.bzl` and compiling directly
+  with `cc_binary` + `drop_build_rpath` removes `rules_foreign_cc` and the `autoconf`, `m4`, and
+  `make` execution toolchains while supporting both AMD64 and ARM64 Trixie.
+- **Shared library and CLI CMake package (`libpsample`):** In
+  [registry #302](https://github.com/securely1g/sonic-bazel-registry/pull/302) (`060c9db3`),
+  upstream `CMakeLists.txt` compiles `src/mnlg.c` and `src/psample.c` into `libpsample.so.1.0`
+  (`SONAME` `libpsample.so.1`) linked against `libmnl`, plus `psample_tool/psample.c` linked
+  dynamically against `libpsample.so.1`. Expressing that directly with `cc_library`,
+  `cc_shared_library`, `shared_library_cc_info`, and `cc_binary` preserves the exact exported
+  dynamic symbol set, `DT_SONAME`, `DT_NEEDED`, and multiarch `/usr/lib/{x86_64,aarch64}-linux-gnu`
+  layout without CMake or `rules_foreign_cc`.
+
+### Migrate legacy `rules_foreign_cc` registry modules
+
+When a component or container migration encounters an existing `sonic-bazel-registry` module that
+still wraps `configure_make` or `cmake` without an approved specialized exception (for example,
+`sflowtool@6.11.0.sonic.2` from [registry #191](https://github.com/securely1g/sonic-bazel-registry/pull/191)
+or `libpsample@1.1.0.sonic.1` from [registry #189](https://github.com/securely1g/sonic-bazel-registry/pull/189)):
+
+1. Publish a new `.sonic.<N+1>` registry version converting the overlay to native rules; leave all
+   published version directories and their `metadata.json` entries untouched.
+2. Remove `rules_foreign_cc` and obsolete foreign execution toolchains (`autoconf_toolchain`,
+   `m4_toolchain`, `make_toolchain`) from `MODULE.bazel`, then regenerate `overlay/MODULE.bazel`
+   with `python3 ci/registry_ci.py sync-module`.
+3. Preserve public target labels (`:runtime`, `:runtime.debug_symbols`, `:runtime_packages.json`,
+   and public `cc_library` SDK targets) so downstream images and C/C++ consumers upgrade without
+   structural rewrites.
+4. Compare `nm -D --defined-only` exported symbols, `DT_SONAME`, and `DT_NEEDED` against the
+   Make-built `.deb` baseline, and enable both `amd64` and `arm64` in `presubmit.json` when the
+   native rules remove architecture-specific foreign wrapper constraints.
+
 For an explicitly approved specialized exception, verify the selected adapter's API and toolchain
 selection, declared inputs, DESTDIR, installed outputs, logs and actual compiler/linker flags. Use
 declared tools and target libraries; do not install on the host or download during compilation.
@@ -58,11 +100,11 @@ Keep native install and downstream image targets separate where their contracts 
 
 ## Package runtime files and matching symbols
 
-Feed the staged binaries, libraries and required data into the existing
-`sonic_deploy_tar` rules. Use the selected rule's debug-preserving configuration
-and verify that flags such as `-g` actually reach the foreign compiler. Derive
-runtime copies and detached symbols from the same linked ELF, retaining the
-required optimization policy. Follow the existing
+Feed the compiled binaries, libraries and required data into the existing
+`sonic_deploy_tar` rules. Retain debug symbols on the compiled native targets
+(`-g`, `-Wl,--build-id`, `features = ["-strip_debug_symbols"]`) so `sonic_deploy_tar`
+derives stripped runtime copies and detached `.build-id` symbols from the same
+linked ELF while keeping optimization and hardening flags intact. Follow the existing
 [runtime/debug contract](../SKILL.md#build-debug-artifacts-from-the-deployed-binary).
 
 Preserve installed paths, ownership, modes, symlinks, configuration, helper
@@ -86,8 +128,8 @@ before adding a new package definition, then validate the approved target normal
   behavior, architecture, installed layout and a representative consumer.
   Check packaged notices against their source files.
 - Verify runtime/debug build IDs, debug-link checksums and GDB source/line lookup.
-  Retain paired artifacts and hashes, source provenance, configuration logs and
-  resolved dependency evidence.
+  Retain paired artifacts and hashes, source provenance, generated configuration
+  headers and resolved dependency evidence.
 - Validate the required execution/target matrix. Native AMD64 and ARM64 runs are
   useful when those are the supported configurations; they do not prove
   cross-compilation. Report source-package and consuming-image results separately.
