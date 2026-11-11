@@ -67,7 +67,11 @@ class TaskProgressCLI(unittest.TestCase):
         component = self.root / "components" / "SERVICE_A"
         component.mkdir(parents=True, exist_ok=True)
         self.write(component / "analysis.json", {"task_id": "SERVICE_A", "package_contents": {"value": []}})
+        inputs = {"source_revision": "source-v1", "configuration": {
+            "os": "trixie", "toolchain": "gcc-test", "execution_arch": "amd64",
+            "target_arch": "arm64", "features": {}, "dependencies": {}}}
         implementation = {
+            "inputs": copy.deepcopy(inputs),
             "task_id": "SERVICE_A",
             "deliverables": [{"install_target": "//:runtime", "acceptance": list(required)}],
         }
@@ -84,9 +88,10 @@ class TaskProgressCLI(unittest.TestCase):
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_text("{}\n" if field == "artifact_manifest" else "fixture evidence\n")
         verification = component / "verification.json"
-        self.write(verification, {"task_id": "SERVICE_A", "checks": checks})
+        self.write(verification, {"task_id": "SERVICE_A", "inputs": copy.deepcopy(inputs), "checks": checks})
         record = self.load()
         record["tasks"][0].update({
+            "inputs": copy.deepcopy(inputs),
             "status": "pending_verification",
             "analysis_status": "analysis_complete",
             "analysis": "components/SERVICE_A/analysis.json",
@@ -157,6 +162,77 @@ class TaskProgressCLI(unittest.TestCase):
                 reference = Path(updated["verification"])
                 self.assertEqual((reference if reference.is_absolute() else self.root / reference).resolve(), verification)
 
+    def test_completion_rejects_stale_or_missing_build_identity(self):
+        # Version-specific completion is required by phase-handoff section 2.
+        for state in ("completed", "reused"):
+            for record_name in ("task", "implementation", "verification"):
+                for change in ("revision", "architecture", "features", "missing_inputs",
+                               "missing_revision", "missing_configuration", "empty_configuration",
+                               "missing_os", "missing_toolchain", "missing_execution_arch",
+                               "missing_target_arch", "missing_features", "missing_dependencies"):
+                    with self.subTest(state=state, record=record_name, change=change):
+                        component, verification = self.evidence()
+                        path = self.tasks if record_name == "task" else component / (record_name + ".json")
+                        value = json.loads(path.read_text())
+                        record = value["tasks"][0] if record_name == "task" else value
+                        if change == "revision":
+                            record["inputs"]["source_revision"] = "source-v2"
+                        elif change == "architecture":
+                            record["inputs"]["configuration"]["target_arch"] = "amd64"
+                        elif change == "features":
+                            record["inputs"]["configuration"]["features"] = {"debug": True}
+                        elif change == "missing_inputs":
+                            record.pop("inputs")
+                        elif change == "missing_revision":
+                            record["inputs"].pop("source_revision")
+                        elif change == "missing_configuration":
+                            record["inputs"].pop("configuration")
+                        elif change == "empty_configuration":
+                            record["inputs"]["configuration"] = {}
+                        else:
+                            record["inputs"]["configuration"].pop(change.removeprefix("missing_"))
+                        self.write(path, value)
+                        before = self.tasks.read_bytes()
+                        self.completion(verification, status=state, success=False)
+                        self.assertEqual(self.tasks.read_bytes(), before)
+
+    def test_matching_old_records_cannot_complete_a_new_task(self):
+        _, verification = self.evidence()
+        value = self.load()
+        value["tasks"][0]["inputs"]["source_revision"] = "source-v2"
+        self.write(self.tasks, value)
+        for state in ("completed", "reused"):
+            before = self.tasks.read_bytes()
+            self.completion(verification, status=state, success=False)
+            self.assertEqual(self.tasks.read_bytes(), before)
+
+    def test_completion_requires_complete_configuration_even_when_records_match(self):
+        for field in ("os", "toolchain", "execution_arch", "target_arch", "features", "dependencies"):
+            with self.subTest(field=field):
+                component, verification = self.evidence()
+                for path in (self.tasks, component / "implementation.json", verification):
+                    value = json.loads(path.read_text())
+                    record = value["tasks"][0] if path == self.tasks else value
+                    record["inputs"]["configuration"].pop(field)
+                    self.write(path, value)
+                before = self.tasks.read_bytes()
+                self.completion(verification, success=False)
+                self.assertEqual(self.tasks.read_bytes(), before)
+
+    def test_completion_accepts_another_matching_configuration(self):
+        component, verification = self.evidence()
+        configuration = {"os": "bookworm", "toolchain": "another-sdk", "execution_arch": "arm64",
+                         "target_arch": "armhf", "features": {"stats": True},
+                         "dependencies": {"common": "revision-2", "lock_sha256": "fixture-digest"}}
+        for path in (self.tasks, component / "implementation.json", verification):
+            value = json.loads(path.read_text())
+            record = value["tasks"][0] if path == self.tasks else value
+            record["inputs"] = {"source_revision": "source-v2+local-digest", "configuration": configuration}
+            self.write(path, value)
+        for state in ("completed", "reused"):
+            self.completion(verification, status=state)
+            self.assertEqual(self.tasks_by_id()["SERVICE_A"]["status"], state)
+
     def test_completion_requires_verification_argument_and_implementation(self):
         before = self.tasks.read_bytes()
         self.cli("update", "--id", "SERVICE_A", "--status", "completed", success=False)
@@ -178,7 +254,9 @@ class TaskProgressCLI(unittest.TestCase):
         malformed = [original["checks"][:1], original["checks"] + [copy.deepcopy(original["checks"][0])]]
         for checks in malformed:
             with self.subTest(check_ids=[check["id"] for check in checks]):
-                self.write(verification, {"task_id": "SERVICE_A", "checks": checks})
+                value = copy.deepcopy(original)
+                value["checks"] = checks
+                self.write(verification, value)
                 before = self.tasks.read_bytes()
                 self.completion(verification, success=False)
                 self.assertEqual(self.tasks.read_bytes(), before)
@@ -349,6 +427,27 @@ class TaskProgressCLI(unittest.TestCase):
             self.assertIn("records/" + identifier + ".json", json.dumps(entries[identifier]))
         self.assertEqual(entries["INDEPENDENT"]["status"], "completed")
         self.assertEqual(entries["SERVICE_A"]["products"], ["service_a.deb", "service_a-dev.deb"])
+
+    def test_merge_explicit_build_identity_change_invalidates_consumers(self):
+        for field, changed_value in (("source_revision", "source-v2"),
+                                     ("configuration", {"target_arch": "amd64"})):
+            with self.subTest(field=field):
+                original = [task("SERVICE_A", status="completed"),
+                            task("SERVICE_B", ["SERVICE_A"], 1, "reused"),
+                            task("INDEPENDENT", status="completed")]
+                original[0]["inputs"] = {"source_revision": "source-v1",
+                                         "configuration": {"target_arch": "arm64"}}
+                self.write(self.tasks, {"tasks": original})
+                fresh_entries = copy.deepcopy(original)
+                fresh_entries[0]["inputs"][field] = changed_value
+                fresh = self.root / "fresh.json"
+                self.write(fresh, {"tasks": fresh_entries})
+                self.merge(fresh)
+                result = self.tasks_by_id()
+                self.assertEqual(result["SERVICE_A"]["status"], "pending_review")
+                self.assertEqual(result["SERVICE_B"]["status"], "pending_review")
+                self.assertEqual(result["INDEPENDENT"]["status"], "completed")
+                self.assertEqual(result["SERVICE_A"]["inputs"], fresh_entries[0]["inputs"])
 
     def test_merge_invalid_input_preserves_existing_outputs(self):
         fresh = self.root / "fresh.json"

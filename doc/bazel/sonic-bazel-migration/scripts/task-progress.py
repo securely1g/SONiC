@@ -98,9 +98,12 @@ def completion(task, task_directory):
     verification_path = reference(task['verification'], task_directory)
     implementation = read_json(implementation_path)
     verification = read_json(verification_path)
+    expected = build_inputs(task, task['id'])
     for name, record in [('implementation', implementation), ('verification', verification)]:
         if not isinstance(record, dict) or record.get('task_id') != task['id']:
             raise ValueError(f'{task["id"]}: {name} task_id mismatch')
+        if build_inputs(record, name) != expected:
+            raise ValueError(f'{task["id"]}: {name} source revision or build configuration mismatch')
     required = set()
     deliverables = implementation.get('deliverables', [])
     if not isinstance(deliverables, list):
@@ -145,6 +148,25 @@ def completion(task, task_directory):
         for value in check.get('evidence', []):
             if isinstance(value, str):
                 readable(reference(value, verification_path.parent))
+
+
+def build_inputs(record, name):
+    inputs = record.get('inputs')
+    if not isinstance(inputs, dict):
+        raise ValueError(f'{name}: Completion requires inputs')
+    revision = inputs.get('source_revision')
+    configuration = inputs.get('configuration')
+    if not isinstance(revision, str) or not revision.strip():
+        raise ValueError(f'{name}: Completion requires a nonempty source_revision')
+    if not isinstance(configuration, dict) or not configuration:
+        raise ValueError(f'{name}: Completion requires a nonempty configuration object')
+    for field in ('os', 'toolchain', 'execution_arch', 'target_arch'):
+        if not isinstance(configuration.get(field), str) or not configuration[field].strip():
+            raise ValueError(f'{name}: configuration requires a nonempty {field}')
+    for field in ('features', 'dependencies'):
+        if not isinstance(configuration.get(field), dict):
+            raise ValueError(f'{name}: configuration requires a {field} object')
+    return inputs
 
 
 def update(args):
@@ -214,7 +236,9 @@ def merge(args):
     added = set(current) - previous.keys()
     removed = set(previous) - current.keys()
     changed = {key for key in current.keys() & previous.keys()
-               if facts(current[key]) != facts(previous[key])}
+               if facts(current[key]) != facts(previous[key]) or
+               ('inputs' in current[key] and
+                current[key]['inputs'] != previous[key].get('inputs'))}
     invalid = changed | added
     while True:
         affected = {key for key, task in current.items()
@@ -227,6 +251,8 @@ def merge(args):
     result['tasks'] = []
     for key, task in current.items():
         record = copy.deepcopy(previous.get(key, {}))
+        if 'inputs' in task:
+            record['inputs'] = copy.deepcopy(task['inputs'])
         for field in GRAPH_FIELDS:
             record.pop(field, None)
             if field in task:
