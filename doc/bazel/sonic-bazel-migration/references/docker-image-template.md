@@ -209,10 +209,12 @@ failed preparation, queries or copies. Follow the
 
 ## Reuse bazel-oci for image CI
 
-Extend the VS producer in `.github/workflows/bazel-oci.yml` to publish the new
-image. Add its validation to the existing per-container matrix. The validation
-job downloads the archive from that VS build, verifies its revision and digest,
-and runs the common checks and container-specific probes. For example, the
+The existing `vs_container` job in `.github/workflows/bazel-oci.yml` runs
+`make target/sonic-vs.bin` and uploads the selected container archives as
+GitHub Actions artifacts. When adding a container, include its archive in that
+job's uploads and add its probes to the existing `validate_container` matrix.
+Each validation job downloads its archive from the same VS build, verifies its
+revision and digest, and runs the common checks and container-specific probes. For example, the
 AMD64 SWSS validator loads the producer's `docker-orchagent.gz` and checks
 matching symbols when the producer also publishes the enabled debug archive.
 
