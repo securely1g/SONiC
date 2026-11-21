@@ -434,6 +434,12 @@ The debug image should extend the exact runtime image whose symbols were collect
 - CodeQL and similar compiler-tracing analyzers must observe compilation after initialization. Use a fresh build configuration that prevents action-cache reuse from bypassing extraction, then compare analyzed source coverage with the previous pipeline.
 - Verify generated-code reporting as well as compilation. A generated wrapper can compile successfully while its findings remain outside the analyzer's reported source roots.
 
+### Use the VS installer as the CI artifact producer
+
+In `sonic-buildimage` CI, the existing `vs_container` job in `.github/workflows/bazel-oci.yml` builds the VS installer and uploads its release artifacts to GitHub Actions. Add validation jobs that consume its published files for the same tested revision, architecture and configuration. This applies to container archives and their package inputs, including kernel DEBs, Python wheels and runtime TARs. If a validator needs an intermediate file, have VS publish the file it used. Fail the validation if an expected artifact is missing or mismatched. Check optional outputs such as debug images only when enabled in the producer.
+
+Get **explicit user approval before adding a CI job or fallback that builds its own copy**. Identify the job, artifact, configuration and reason the VS output cannot test the required behavior. Independent source tests can build their test fixtures. A specifically approved rebuild test can build the named target to exercise behavior such as cache invalidation. Keep its output separate from the VS artifact used for release validation. Component repositories continue to run their own source CI.
+
 ### Reuse Bazel OCI for new images
 
 For every new OCI image in `sonic-buildimage`, extend `.github/workflows/bazel-oci.yml`; do not introduce a separate image-specific workflow. Reuse its existing jobs and shared setup where compatible, while retaining checks of the build, runtime behavior, matching debug symbols and cache behavior. Follow [OCI workflow reuse](references/docker-image-template.md#reuse-bazel-oci-for-image-ci) for integration details. Component source repositories still need their own source CI. This rule governs new image CI; it does not authorize consolidating unrelated existing workflows.

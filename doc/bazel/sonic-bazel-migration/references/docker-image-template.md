@@ -209,20 +209,18 @@ failed preparation, queries or copies. Follow the
 
 ## Reuse bazel-oci for image CI
 
-Add new `sonic-buildimage` OCI image validation to the existing
-`.github/workflows/bazel-oci.yml`. Extend compatible jobs or matrix legs to reuse
-checkout, execution tools, source preparation, Bazel setup, caches and artifact
-publication. Add a dependent job in that same workflow when installed-image
-checks require a different execution environment; do not create another
-image-specific workflow file.
+The existing `vs_container` job in `.github/workflows/bazel-oci.yml` runs
+`make target/sonic-vs.bin` and uploads the selected container archives as
+GitHub Actions artifacts. When adding a container, include its archive in that
+job's uploads and add its probes to the existing `validate_container` matrix.
+Each validation job downloads its archive from the same VS build, verifies its
+revision and digest, and runs the common checks and container-specific probes. For example, the
+AMD64 SWSS validator loads the producer's `docker-orchagent.gz` and checks
+matching symbols when the producer also publishes the enabled debug archive.
 
-Retain the image's explicit build targets, supported architecture/feature gates,
-runtime checks, matching debug symbols, cache reuse and source invalidation
-evidence, and artifact revision/hash checks. Reuse established cache namespaces
-and artifact handoff conventions where compatible; keep image outputs distinct so jobs
-cannot overwrite or consume another image's artifacts. Check timeout and
-resource needs when combining jobs. This consuming-image CI does not replace
-the owning components' source-repository CI.
+Apply the [CI artifact producer rule](../SKILL.md#use-the-vs-installer-as-the-ci-artifact-producer)
+before adding any separate image build. Keep approved source and rebuild tests
+independent of the published image inspected by the validator.
 
 ## Completion checks
 
