@@ -219,8 +219,8 @@ AMD64 SWSS validator loads the producer's `docker-orchagent.gz` and checks
 matching symbols when the producer also publishes the enabled debug archive.
 
 Apply the [CI artifact producer rule](../SKILL.md#use-the-vs-installer-as-the-ci-artifact-producer)
-before adding any separate image build. Keep approved source and rebuild tests
-independent of the published image inspected by the validator.
+to select affected components and container probes. Run each selected probe
+against the current VS artifacts. Follow the same rule before adding a separate build.
 
 ## Completion checks
 
