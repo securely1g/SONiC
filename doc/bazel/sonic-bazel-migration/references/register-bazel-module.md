@@ -4,7 +4,7 @@ Read the [shared contract](common-contract.md). Use for implementation ownership
 
 ## Authorities and entry points
 
-- [Registry](https://github.com/securely1g/sonic-bazel-registry).
+- [Registry](https://github.com/sonic-net/sonic-bazel-registry).
 - Version/publishing policy: its README.md.
 - Verification contract: ci/README.md and ci/registry_ci.py.
 
@@ -93,7 +93,7 @@ Implement/verify MODULE, BUILD, public targets/helpers/tests in the source owner
 Independent component root .bazelrc:
 
 ```text
-common --registry=https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/main
+common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
 common --registry=https://bcr.bazel.build
 ```
 
