@@ -16,20 +16,34 @@ Share sources/package identities while exposing separate interfaces. Reuse DEBs 
 
 One editable infra apt/sources.json declares ordinary/security sources, fixed snapshots, suites/components/architectures. Shared extensions read it; components request packages/sets/suites without copying URLs. Independent roots reuse the same baseline; alternate root baselines explicitly select one configuration across the graph. Conflicting same-suite sources fail.
 
-Example:
+Example showing the Trixie subset of the shared baseline. The selected infra
+revision's apt/sources.json owns suites, architectures and snapshot identity.
+It also supplies Bookworm and Trixie armhf where configured. Components reuse
+that shared configuration rather than copying this subset.
+
+For new or changed download wiring, follow the [download policy](../SKILL.md#use-github-or-the-approved-private-mirror-for-downloads):
+use the approved private mirror. Replace the placeholders below with its actual
+ordinary/security endpoints; their paths are mirror-specific. Keep private
+addresses and credentials outside public source. Existing infra snapshot URLs
+identify inherited inputs and provenance; they do not approve new public-host
+downloads. A transport change requires the authorized source-change procedure
+and lock review, preserving package bytes and hashes.
+
+Snapshot provenance for this example is Debian `20260727T143429Z` and
+Debian security `20260726T121236Z`.
 
 ```json
 {
   "version": 1,
   "sources": [
     {
-      "uris": ["https://snapshot.debian.org/archive/debian/20260727T143429Z"],
+      "uris": ["https://APPROVED_PRIVATE_MIRROR/DEBIAN_SNAPSHOT_PATH"],
       "suites": ["trixie", "trixie-updates"],
       "components": ["main"],
       "architectures": ["amd64", "arm64"]
     },
     {
-      "uris": ["https://snapshot.debian.org/archive/debian-security/20260726T121236Z"],
+      "uris": ["https://APPROVED_PRIVATE_MIRROR/DEBIAN_SECURITY_SNAPSHOT_PATH"],
       "suites": ["trixie-security"],
       "components": ["main"],
       "architectures": ["amd64", "arm64"]

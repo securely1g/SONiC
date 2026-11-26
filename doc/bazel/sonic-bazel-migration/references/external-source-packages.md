@@ -1,4 +1,4 @@
-# External source packages with upstream configure/Make
+# External source packages and maintained packaging inputs
 
 Use this route to recover the SONiC source and packaging inputs, then compile ordinary packages
 with [native language rules](implement-component.md). Apply the existing central-registry check.
@@ -60,7 +60,8 @@ Keep native install and downstream image targets separate where their contracts 
 
 Feed the staged binaries, libraries and required data into the existing
 `sonic_deploy_tar` rules. Use the selected rule's debug-preserving configuration
-and verify that flags such as `-g` actually reach the foreign compiler. Derive
+and verify that flags such as `-g` actually reach the compiler. For an approved
+foreign-build exception, verify that its adapter forwards those flags. Derive
 runtime copies and detached symbols from the same linked ELF, retaining the
 required optimization policy. Follow the existing
 [runtime/debug contract](../SKILL.md#build-debug-artifacts-from-the-deployed-binary).

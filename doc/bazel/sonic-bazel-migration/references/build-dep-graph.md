@@ -4,10 +4,10 @@ Read the [shared contract](common-contract.md). The helper collects SONiC depend
 
 ## Invocation
 
-From the repository root, replace component/output directory:
+Set BUILDIMAGE_ROOT to the absolute sonic-buildimage checkout path; replace the component/output directory:
 
 ```bash
-python3 "${SKILL_DIR}/scripts/build-dep-graph.py" . \
+python3 "${SKILL_DIR}/scripts/build-dep-graph.py" "$BUILDIMAGE_ROOT" \
   --component FRR \
   --output-dir /path/to/migration-records/FRR
 ```

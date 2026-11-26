@@ -74,8 +74,10 @@ without acquiring a build matrix from this rule.
 
 For a gap, inspect workflow presence and triggers, the current tested revision,
 matrix jobs, skip conditions, Actions/approval state, and branch protection or
-rulesets before choosing a fix. Reuse a previously recorded assessment for an
-unchanged head, workflow, and gate state; do not repeatedly rerun healthy builds.
+rulesets before choosing a fix. Reuse only stable classification and the expected
+job list after verifying the head, workflow, and gate inputs. Fetch current check/job results each cycle
+and construct a fresh assessment, including for unchanged heads. This status
+read does not require rerunning healthy builds.
 An API failure means the state is unknown, not that CI is absent.
 
 Apply [the CodeQL policy](../SKILL.md#keep-codeql-informational): report its real

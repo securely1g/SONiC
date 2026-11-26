@@ -23,10 +23,10 @@ Recursively find SONiC package/wheel/container/image producers until closure, es
 
 Use the union of all branches with provenance. graph.json omits conditions; component analysis explains them. Any co-product pulls in its production task and combined prerequisites. Schedule shared components once; omit intra-task relations. Component analysis handles generators/compilers/system libraries/sources/options; registered produced tools remain components. Resolve only relationship gaps affecting scheduling here.
 
-Use [dependency collection](build-dep-graph.md) from repository root:
+Use [dependency collection](build-dep-graph.md) with the explicit sonic-buildimage checkout path:
 
 ```bash
-python3 "${SKILL_DIR}/scripts/build-dep-graph.py" . \
+python3 "${SKILL_DIR}/scripts/build-dep-graph.py" "$BUILDIMAGE_ROOT" \
   --component FRR \
   --output-dir /path/to/migration-records/FRR
 ```

@@ -1,6 +1,6 @@
 # Lock and refresh dependency inputs
 
-Read the [shared contract](common-contract.md) when dependencies, versions, sources, patches, features/extras, interpreters/SDKs, platforms or repositories change. Resolve affected graphs in their owning repositories, maintain versions/checksums/derived files and verify consumers with pinned tools. APT preserves existing versions except under its explicit source-change policy. [Source/patch changes](source-and-patches.md) retain raw/patch checksums, full order and final identity.
+Read the [shared contract](common-contract.md) when dependencies, versions, sources, patches, features/extras, interpreters/SDKs, platforms or repositories change. Resolve affected graphs in their owning repositories, maintain versions/checksums/derived files and verify consumers with pinned tools. APT preserves existing versions except under an explicitly authorized source or existing-package version change. [Source/patch changes](source-and-patches.md) retain raw/patch checksums, full order and final identity.
 
 ## Three information layers
 
@@ -19,7 +19,7 @@ Check versions and hashes independently; module/language/APT versions differ. Re
 3. Prefer compatible maintained shared versions after checking constraints/platform/SDK/ABI/features/patches/licenses and origin/content, not version equality alone.
 4. Without reuse, choose fixed candidates from actual requirements and verify functionality/compile/link/runtime. Record indeterminate original versions and candidate rationale; one resolution is not automatically the original contract.
 5. Prove real SDK/ABI/rule conflicts before minimal authorized changes. Explain every resolver-induced difference; out-of-scope upgrades require authorization and unrelated versions stay fixed.
-6. APT keeps versions/checksums, adds only new closure, and re-resolves existing packages only after authorized source changes, not targeted ecosystem-style upgrades.
+6. APT keeps versions/checksums and adds only new closure by default. Explicitly authorized source changes use --allow-source-change; explicitly authorized existing-package version changes under unchanged sources use --allow-version-change. Neither permits changing the identity fields or checksum for an existing suite/name/architecture/version package key.
 
 Record original/selected identities, rationale, affected consumers/configurations and no-diff outcomes in implementation.
 
@@ -45,7 +45,7 @@ Under [APT interfaces](use-apt-libraries.md), images/rootfs consume files, targe
 
 The lock records global source input identity and resolved sources. Normal builds read it/check identity; request/source/architecture changes refresh affected sets explicitly. Snapshots plus production locks ensure repeatability; MODULE locks/facts do not replace them. Library export also pins file maps/indexes.
 
-Version-2 apt.import_lock supplies data/control only, without library export file mappings. Development collections expose CcInfo; apt.install declares requests whose production use must bind locked versions/checksums/export inputs. Tools expose launchers/execution runtimes from locked packages. base/Orchagent/syncd-vs use sets in the same lock. Pin sources/sets/package identities/architectures/versions/edges/raw DEB SHA256; extra payload/control hashes depend on actual schemas, not one image's fields universally.
+Version-2 apt.import_lock supplies data/control archives by default. With libraries = True it also exports library CcInfo using locked file maps. Development collections use this shared lock; apt.install declares requests whose production use must bind locked versions/checksums/export inputs. Tools expose launchers/execution runtimes from locked packages. base/Orchagent/syncd-vs use sets in the same lock. Pin sources/sets/package identities/architectures/versions/edges/raw DEB SHA256; extra payload/control hashes depend on actual schemas, not one image's fields universally.
 
 ### Lock on each introduction
 
@@ -95,7 +95,7 @@ apt.export_lock(name = "apt_lock_export", previous_lock = "//:previous.lock.json
 use_repo(apt, "apt_lock_export")
 ```
 
-After source-change authorization edit unique sources and pass --allow-source-change; it still forbids silent existing SHA256 changes. merge migrates old locks but still requires update. --resolved-lock checks saved real resolution, not a substitute for resolving.
+After source-change authorization edit the shared sources and pass --allow-source-change. An explicitly authorized existing-package version change under unchanged sources uses --allow-version-change. Both preserve the identity and SHA256 of an existing package key. merge migrates old locks but still requires update. --resolved-lock checks saved real resolution, not a substitute for resolving.
 
 Normal image consumption:
 
@@ -103,6 +103,8 @@ Normal image consumption:
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.import_lock(
     lock = "@sonic_build_infra//apt:apt.lock.json",
+    sources = "@sonic_build_infra//apt:sources.json",
+    requests = "@sonic_build_infra//apt:requests.json",
     dependency_sets = ["orchagent_debian", "orchagent_debug_debian"],
 )
 use_repo(apt, "orchagent_debian", "orchagent_debug_debian")
