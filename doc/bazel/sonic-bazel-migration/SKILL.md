@@ -116,6 +116,16 @@ After verifying the destination repository, set `git config --local user.email s
 
 Before pushing, inspect the actual new commits' author, committer, and sign-off metadata, not just configuration or the GitHub login. Correct mismatched commits created by the agent within the authorized branch before publishing. Preserve original authorship and trailers on imported contributor commits; this rule is not permission to relabel upstream history. For an authorized rewrite of an unmerged branch, verify the current remote SHA and use an exact `--force-with-lease`. Report already merged mistakes without rewriting the shared target branch unless the user explicitly authorizes that history change.
 
+## Upstream a Bazel component from its fork
+
+Use this sequence whenever submitting a Bazel component from a `securely1g` fork to `sonic-net`. Read both repositories' current default branch names.
+
+1. Open or refresh a sync PR into the fork default. Merge the latest upstream default into the sync branch, carry forward the intended Bazel changes, and update build targets and tests for files upstream added, changed or deleted. If the component lacks fork Bazel CI, land that CI first.
+2. Run fork CI on the proposed merge, including the build and test jobs for every supported architecture. Fix failures and rerun affected checks on the updated revision. Once required checks pass, merge the sync PR with a **merge commit** to preserve both histories. Verify the fork default contains the upstream revision and the tested changes.
+3. Open the upstream PR **as a draft, from the fork default to the upstream default** (for example, `securely1g:master` → `sonic-net:master`). Verify its source SHA and diff, link the fork sync and its CI, and update the tracker. Leave the upstream merge to maintainers.
+
+Reuse an existing upstream PR with the correct source and base. If it uses a topic branch, preserve its changes in the fork sync and close it with a link to that sync. After the sync merges, link the replacement draft and the original PR to each other.
+
 ## Use clear, simple language in PRs and commit messages
 
 Use clear, simple language for PR titles, descriptions, and commit messages. Explain the problem, what changes, and who needs it. Replace jargon with familiar words or explain it at first use; for example, explain "fixture DEBs" as "sample Debian packages used in tests."

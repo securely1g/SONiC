@@ -17,6 +17,7 @@ Select the applicable [migration workflow](migration-workflow.md) sections befor
 - Capture reference artifacts and test results tied to a known source revision and environment.
 - For a PR refresh, record the current base and head and validate their combination; check whether the desired fix already exists before preserving a workaround.
 - Preserve upstream authorship and useful commit history when adopting existing work.
+- For a [component going upstream](../SKILL.md#upstream-a-bazel-component-from-its-fork), record the fork sync PR, its passing CI and merge commit, and the upstream draft from the fork default to the upstream default. Update the tracker with any replacement PR.
 
 **Completion evidence:** a declared configuration matrix, reproducible baseline commands, and an output/test inventory.
 
