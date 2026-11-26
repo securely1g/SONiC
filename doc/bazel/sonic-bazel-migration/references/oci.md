@@ -50,6 +50,27 @@ Recursively close selected entries/original installation relations:
 
 Compile deps do not install files. RuntimePackagesInfo is analysis metadata, not implicit image layers; include public TARs explicitly. Associate metadata requirements with sources/APT/Python inputs. Fix missing producer/TAR, collisions or unsatisfied versions at their owners. Exec private libraries do not provide target runtime. Completion: unique identities and real install origins explain inherited/new closure.
 
+### Record installed component versions in the final image
+
+Every final container image must include one or more JSON manifests that identify
+each installed runtime component by name and version. For a component built from
+a SONiC submodule, also record the full Git commit pinned by the buildimage
+revision that produced the image. Multiple commits can share a package version.
+
+A child image may reuse a manifest shipped in its parent for any component it
+inherits unchanged. If the child replaces a component, its manifests must
+unambiguously identify the version actually installed. Apply this to the
+assembled filesystem after all layers and removals. For example, the BMP image
+can retain the parent's `config-engine-packages.json` for SWSS Common and add
+its own `bmp-packages.json` for BMP.
+
+In CI, read the manifests from the finished image. Derive the expected inventory
+independently from its selected runtime inputs and the files or packages actually
+installed, including inherited components. Compare names and versions, and check
+each SONiC submodule commit against the gitlink in the producing buildimage
+revision. Fail the check for a missing component, a stale version after a
+replacement, or a missing or incorrect commit even when the version is unchanged.
+
 ## 4. Prepare locks, state inputs and configuration
 
 Use infra common sources/requests/production APT lock and image set. Actually [update/check](dependency-locking.md#apt), then derive apt_inputs labels. [Python](dependency-locking.md#python-runtime-locks-and-requires-dist) collects metadata from the source-owner wheels and pins interpreter/platform/extras/index. Install those wheels with shared `wheel_layer`, and use `all_whl_requirements` for the locked external closure. Connect complete closure, installed-metadata and staleness checks to the final installation TAR.

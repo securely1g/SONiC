@@ -131,6 +131,7 @@ Derive applicable matrix from [OCI](oci.md)/analysis. Record identities/commands
 | --- | --- | --- |
 | Prerequisites/inheritance | Real source/registry/PR/base digest/architecture and inherited producers | Missing API/wrong version fails at owner |
 | Runtime set | Every native/APT/Python identity has installation inputs | Missing producer/TAR/transitives fail then recover after correction |
+| [Installed component versions](oci.md#record-installed-component-versions-in-the-final-image) | CI reads JSON from the finished image and verifies every installed runtime component's name and version, plus the full buildimage gitlink for each SONiC submodule component | Reject missing entries, stale inherited versions after replacement, and missing or mismatched commits |
 | Locks | Actual updates/checks/read-only builds and platform/extras/metadata binding | Input changes stale lock; update restores |
 | Files/layers | Contract modes/numeric owners/links/architecture/overwrite/whiteout/opaque/xattr | Forbidden type/content conflicts fail |
 | Metadata/state | TAR/hash/MODULE/control/status/receipt/final payload agree | Wrong base/TAR/missing paths rejected |
