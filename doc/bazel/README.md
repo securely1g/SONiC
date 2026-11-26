@@ -4,6 +4,7 @@
 - [Incremental SWSS and VS build HLD](bazel_incremental_swss_vs_hld.md)
 - [Current AMD64 Docker migration plan](amd64_docker_migration_plan.md) — 23 Docker families, shared package work and implementation progress.
 - [SONiC Bazel migration skill](sonic-bazel-migration/SKILL.md)
+- [Proposed skill for selecting shared Rust crates from a consumer's Cargo.lock](sonic-rust-shared-crates/SKILL.md)
 
 ## Migration skill
 

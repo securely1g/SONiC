@@ -38,6 +38,8 @@ use_repo(crate, crates = "service_crates")
 
 Export Cargo.toml/Cargo.lock in root BUILD. from_cargo reads the same manifest/lock to generate public aliases. Query @crates//:* and consume actual aliases such as :serde; use generated versioned aliases when versions coexist.
 
+For a consumer that already uses `@sonic_rust_deps` and edits versioned labels on upstream syncs, see the [proposed shared-crate selection skill](../../sonic-rust-shared-crates/SKILL.md). It describes how the consumer's lock could select an existing shared target.
+
 Use infra's Rust SDK runner for [Cargo updates](dependency-locking.md#rust-crates). It obtains Cargo, rustc, rustdoc, standard libraries and executables from the selected toolchain, retains the caller workspace, explicitly sets RUSTC/RUSTDOC and avoids rustup switching:
 
 ```sh
