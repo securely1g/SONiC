@@ -14,7 +14,7 @@ Read current policy, target entries and validator input contracts before prepara
 
 Inspect compatible BCR/upstream/project support, versions/ABI/sources/patches/consumers. Reuse suitable support; [justify ownership](infrastructure.md#rule-necessity-and-ownership) for gaps. Replacing/wrapping BCR dependencies requires concrete user approval.
 
-Root configuration chooses registries, with one effective endpoint per repository; dependency rc is not inherited. Prepare prerequisites first. Source overrides prove pointed-to sources only; registry checks prove actual download/patch/overlay/public interfaces. Record both. When switching endpoints inspect the full effective list/versions without drifting checksums/toolchains/APT/language locks.
+Root configuration chooses registries, with one effective endpoint per repository; dependency rc is not inherited. Prepare prerequisites first. Verify the source selected by each consuming root. For a published release, also verify registry acquisition, patches, overlays and public targets. When switching endpoints inspect the full effective list/versions without drifting checksums/toolchains/APT/language locks.
 
 ## Development verification and final registry consumption
 
@@ -42,7 +42,25 @@ Retain historical Make recipes/patches in their original role. Bazel dependency 
 
 ### Registration and implementation are separate
 
-Registration distributes versions without transferring ownership. SONiC fixes enter source repositories then register commits. Registry may validate consumers, while producers own implementation. Create MODULE only for real boundaries; do not hide independent dependencies in consumers to avoid registration. Hand off shared changes per owner.
+Registration distributes versions without transferring ownership. Land SONiC fixes in the producer. Register a landed commit when an independent consumer needs its published version. Registry may validate consumers, while producers own implementation. Create MODULE only for real boundaries; do not hide independent dependencies in consumers to avoid registration. Hand off shared changes per owner.
+
+### Consume a first-party buildimage gitlink
+
+**First conversion.** On the target buildimage branch, use `git ls-tree HEAD -- <path>` to verify a mode-160000 gitlink and read its commit. Compare that commit with the source Bazel actually resolves, including registry patches, overlays and root overrides. Check the exact targets the image consumes. If the gitlink predates the producer's Bazel support, review the native source changes and select a landed commit reachable through the configured submodule URL. Port any required packaging fixes to the producer before switching.
+
+Keep the producer's `bazel_dep` and set `local_path_override(module_name = "...", path = "...")` in the consuming root. Check separate Make-launched Bazel workspaces individually. A root override applies to transitive users in that graph. In a fresh CI checkout, initialize the selected submodule and verify its HEAD equals the parent gitlink. Resolve the real target, build its consuming package or image, and check that any source receipt records the selected commit even if the producer's module version stays constant.
+
+**Routine updates.** Once the override is in place, land the producer change and commit the new submodule pointer in buildimage. For a compatible source update, that pointer is the only buildimage change needed. Publish a registry release only for independent consumers that need to resolve the new revision by version. Other consumers can keep their existing releases.
+
+The SWSS, SWSS Common and SAI Redis conversion in buildimage PR #318 illustrates this boundary. Its VS image continues to resolve the kernel and PINS/P4RT from the registry. [Buildimage PR #318](https://github.com/securely1g/sonic-buildimage/pull/318)
+
+### Register the landed producer
+
+For a first-party SONiC component, keep its Bazel targets, build helpers and producer tests in the source repository. Reuse the existing producer PR. A registry draft can exercise its changes early. For publication, verify that the canonical default branch contains the reviewed changes, pin the canonical archive URL to the full landed commit SHA, and use that same SHA in the module version. Record the archive checksum in `source.json`. Keep registry-specific metadata, version overlays and external consumer tests in the registry. Run the registry build and tests on each supported architecture against the final archive before advancing consumer pins.
+
+If buildimage pins an older submodule commit, compare the native source changes between that gitlink and the proposed producer revision. Normally, coordinate a gitlink update so Make and Bazel build the same source, refresh the affected locks, and verify the image. If the canonical gitlink must be preserved, keep the registration pending or agree on a backport specifically for that revision. Document the upstream origin, compatibility edits, validation and when the backport can be retired. An open producer PR alone is insufficient reason to copy its implementation into a registry patch.
+
+For example, SWSS Common at `e06d5157` predates the Bazel port and the cancellable Redis dialer. Registering the landed port would change both the build definitions and the native source selected by the image. [Producer PR #1322](https://github.com/sonic-net/sonic-swss-common/pull/1322) · [Native changes since the image gitlink](https://github.com/sonic-net/sonic-swss-common/compare/e06d5157...46f427bf)
 
 ## 2. File layout
 
