@@ -44,6 +44,16 @@ Retain historical Make recipes/patches in their original role. Bazel dependency 
 
 Registration distributes versions without transferring ownership. SONiC fixes enter source repositories then register commits. Registry may validate consumers, while producers own implementation. Create MODULE only for real boundaries; do not hide independent dependencies in consumers to avoid registration. Hand off shared changes per owner.
 
+### Register the landed producer
+
+First identify the direct consumers. If buildimage is the only consumer and already pins the producer as a submodule, its root module can use a `local_path_override` for that checkout. Verify that the pinned commit supplies the required Bazel targets and that CI initializes the submodule. This path can build the image without a registry release for that component.
+
+For a first-party SONiC component, keep its Bazel targets, build helpers and producer tests in the source repository. Reuse the existing producer PR. A registry draft can exercise its changes early. For publication, verify that the canonical default branch contains the reviewed changes, pin the canonical archive URL to the full landed commit SHA, and use that same SHA in the module version. Record the archive checksum in `source.json`. Keep registry-specific metadata, version overlays and external consumer tests in the registry. Run the registry build and tests on each supported architecture against the final archive before advancing consumer pins.
+
+If buildimage pins an older submodule commit, compare the native source changes between that gitlink and the proposed producer revision. Normally, coordinate a gitlink update so Make and Bazel build the same source, refresh the affected locks, and verify the image. If the canonical gitlink must be preserved, keep the registration pending or agree on a backport specifically for that revision. Document the upstream origin, compatibility edits, validation and when the backport can be retired. An open producer PR alone is insufficient reason to copy its implementation into a registry patch.
+
+For example, SWSS Common at `e06d5157` predates the Bazel port and the cancellable Redis dialer. Registering the landed port would change both the build definitions and the native source selected by the image. [Producer PR #1322](https://github.com/sonic-net/sonic-swss-common/pull/1322) · [Native changes since the image gitlink](https://github.com/sonic-net/sonic-swss-common/compare/e06d5157...46f427bf)
+
 ## 2. File layout
 
 ```text

@@ -570,6 +570,8 @@ On every complete successful babysitter cycle, assess each open in-scope PR usin
 
 ## Follow the registry version policy
 
+When publishing a first-party SONiC module, [register the landed producer](references/register-bazel-module.md#register-the-landed-producer) and validate its release before updating downstream pins.
+
 Before adding or updating registry module versions, read and follow the [SONiC registry version policy](https://github.com/securely1g/sonic-bazel-registry/blob/main/README.md#module-version-convention), including its publishing and migration guidance. Use that policy as the source of truth for source classification, version naming, patch revisions, source commit IDs, and dependency-resolution checks.
 
 Keep one current unreleased candidate per module across the affected open PR stack. A version is published when it is on the maintained registry branch or has a verified explicit release independent of the draft stack; an open PR, unmerged stacked base or successful CI does not publish it. Inventory other open registrations of that module. Preserve published source and build inputs; documentation and standalone test maintenance may update the same version only within the [published-entry maintenance boundary](references/shared-dependency-workflow.md#maintain-published-entries-without-changing-build-inputs). Recheck publication before draft cleanup, then update affected consumers' declared and resolved versions and temporary source pins together. Use [the draft-version workflow](references/shared-dependency-workflow.md#keep-one-unreleased-candidate-per-module) for coordinated edits, registry CI coverage, and reassessment after a merge.
