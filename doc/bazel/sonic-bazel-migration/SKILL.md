@@ -110,9 +110,9 @@ Existing checkouts outside this layout require an inventory before migration: in
 
 ## Use the correct publishing identity
 
-For SONiC migration work published through `securely1g`, create PRs with the authenticated GitHub account `securely1g`. GitHub authentication does not set Git commit metadata: all new agent-authored commits must use `securely1g@gmail.com` for both author and committer email, and for the agent's `Signed-off-by` trailer when a sign-off is included.
+For SONiC migration work published through `securely1g`, authenticate as `securely1g`. Use the exact Git identity `securely1g <securely1g@gmail.com>` for the author, committer and the author's own sign-off on new commits.
 
-After verifying the destination repository, set `git config --local user.email securely1g@gmail.com` in its checkout. Preserve the user's configured name and unrelated global Git identity. Check the effective author and committer with `git var GIT_AUTHOR_IDENT` and `git var GIT_COMMITTER_IDENT`; environment variables, worktree configuration, and command-line overrides can supersede repository configuration. Do not override the required email when committing.
+Set `git config --local user.name securely1g` and `git config --local user.email securely1g@gmail.com` in the fork checkout. Before committing, verify both `git var GIT_AUTHOR_IDENT` and `git var GIT_COMMITTER_IDENT`. A checkout can inherit the name `Guohan Lu` even when its email and GitHub login are correct.
 
 Before pushing, inspect the actual new commits' author, committer, and sign-off metadata, not just configuration or the GitHub login. Correct mismatched commits created by the agent within the authorized branch before publishing. Preserve original authorship and trailers on imported contributor commits; this rule is not permission to relabel upstream history. For an authorized rewrite of an unmerged branch, verify the current remote SHA and use an exact `--force-with-lease`. Report already merged mistakes without rewriting the shared target branch unless the user explicitly authorizes that history change.
 
