@@ -570,7 +570,7 @@ On every complete successful babysitter cycle, assess each open in-scope PR usin
 
 ## Follow the registry version policy
 
-When publishing a first-party SONiC module, [register the landed producer](references/register-bazel-module.md#register-the-landed-producer) and validate its release before updating downstream pins.
+Prefer buildimage’s existing gitlink for a first-party submodule. When publishing it for independent consumers, [register the landed producer](references/register-bazel-module.md#register-the-landed-producer) and validate its release before updating downstream pins.
 
 Before adding or updating registry module versions, read and follow the [SONiC registry version policy](https://github.com/securely1g/sonic-bazel-registry/blob/main/README.md#module-version-convention), including its publishing and migration guidance. Use that policy as the source of truth for source classification, version naming, patch revisions, source commit IDs, and dependency-resolution checks.
 
