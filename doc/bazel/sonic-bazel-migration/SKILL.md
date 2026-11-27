@@ -594,6 +594,8 @@ Every registry PR must also target the registry's maintained `master` or `main` 
 
 ## Integrate and report completion
 
+Maintain [one Bazel build recipe per component](references/register-bazel-module.md#one-bazel-build-recipe-per-component). Check the producer BUILD files, effective registry overlays and root overrides together. Image integration should consume the owner's targets and fixtures.
+
 The two shared infrastructure repositories are `sonic-build-infra` and `sonic-bazel-registry`. Put common toolchain, build, and packaging logic in `sonic-build-infra`, and shared module versions and registry metadata in `sonic-bazel-registry`. Use the forks selected by the user or the component's current configuration, and verify their upstream relationships and pinned revisions before editing or creating a pull request; do not assume the component already consumes a particular fork. Component repositories own build targets, packages, tests, and local CI for their own source and outputs, plus consumer integration; consuming image assembly belongs in `sonic-buildimage`. Keep shared changes limited to the common work needed by the component migration.
 
 For module registration or update work in `sonic-bazel-registry`, scope each PR to one module. Keep that module's required metadata, version entries, source definitions, patches, overlays, and validation together. When a migration changes multiple modules, use a separate PR for each module.

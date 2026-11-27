@@ -34,6 +34,14 @@ Decide source ownership, implementation owner and independent publishing need be
 
 Examples: buildimage owns sonic-bgpcfgd/sonic-frr-mgmt-framework; libnl3/libyang adaptations belong in registry. Read actual sources/consumers rather than treating examples as exhaustive.
 
+### One Bazel build recipe per component
+
+Choose one owner for the targets that compile the component and produce its public artifacts. For sources maintained in buildimage, keep that recipe with the source. For a standalone SONiC producer, use its repository. For an external dependency that lacks a suitable upstream recipe, maintain the SONiC recipe in its registry overlay. A registry entry can publish an owner's source tree with its existing BUILD files.
+
+During review, trace the targets used by the actual consumers. Inspect the source archive and subdirectory, registry patches and overlays, root overrides, and compile or package actions. A matching filename or module declaration alone does not establish duplicate ownership. Forwarding labels, image-specific control metadata and installed-image checks may live in buildimage. Keep reusable test fixtures with their recipe and expose them to consumers that exercise a different installation path.
+
+When consolidating, preserve the public targets used by both image and standalone consumers. Move consumer patches that edit another module's BUILD or dependency lock to that module's owner. Test the producer, the image path, and the released interface from an independent consumer without local overrides. For an already published module, register a new immutable version from the landed producer, update consumer pins, and remove the superseded overlay or workaround from the new path. Keep historical releases reproducible.
+
 ### Private input versus independent dependency
 
 Private inputs co-evolve with internal implementation and expose no independently maintained/consumed module contract. Record identity/purpose/coupling/rationale. Independent releases/version/patch/ABI lifecycles and consumable libraries/programs evidence a dependency boundary. One consumer, existing src location or convenience does not make an independent dependency private.
